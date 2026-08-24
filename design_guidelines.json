@@ -1,0 +1,127 @@
+{
+  "theme": "Dark Mode (Primary)",
+  "typography": {
+    "headings": {
+      "font": "Outfit",
+      "weights": ["600", "800"],
+      "usage": "Use tight letter spacing (tracking-tighter) for large headings (text-5xl to text-6xl+). Exude a modern, bold IT agency feel."
+    },
+    "body": {
+      "font": "Manrope",
+      "weights": ["400", "500"],
+      "usage": "Clean, highly readable geometric sans for body copy and dashboard dense data."
+    },
+    "accents": {
+      "font": "JetBrains Mono",
+      "usage": "For technical details, overlines, and code-like elements. Uppercase with wide tracking."
+    }
+  },
+  "colors": {
+    "background": {
+      "base": "#0A0A0A",
+      "surface": "#141414",
+      "surface_elevated": "#1F1F1F"
+    },
+    "brand": {
+      "primary": "#FF7A00",
+      "secondary": "#FFB800",
+      "tertiary": "#E66D00"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#A3A3A3",
+      "muted": "#737373"
+    },
+    "borders": {
+      "default": "rgba(255, 255, 255, 0.1)",
+      "active": "rgba(255, 122, 0, 0.5)"
+    },
+    "dashboard_accents": {
+      "success": "#22C55E",
+      "warning": "#F59E0B",
+      "error": "#EF4444",
+      "info": "#3B82F6"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "Use sparingly on sticky headers (backdrop-blur-xl bg-black/60 with 1px border-white/10). Do NOT use on dashboard widgets to preserve data clarity.",
+    "borders": "Marketing cards can use 'Tracing Beam' glowing orange gradient borders. Dashboard widgets should use crisp 1px solid borders.",
+    "textures": "Incorporate subtle noise/grain over solid dark backgrounds to reduce flat 'digital' look.",
+    "shadows": "Ambient glows in brand color (shadow-[0_0_30px_rgba(255,122,0,0.15)]) for primary CTAs and active states."
+  },
+  "layouts": {
+    "marketing": {
+      "hero": "Asymmetric layout. Bold 'Outfit' H1 text. Background image with bg-black/50 overlay.",
+      "services": "Bento Grid Protocol. gap-8. Mix tall and wide cards.",
+      "spacing": "Generous (py-24 to py-32) between sections."
+    },
+    "dashboard": {
+      "structure": "Sidebar navigation (left) + Topbar (user/auth) + Main content area.",
+      "grid": "High Density Grid (grid-cols-1 md:grid-cols-4) with tight gaps (gap-6).",
+      "spacing": "Functional (p-6 or p-8 inside cards)."
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#FF7A00] text-white font-bold hover:bg-[#E66D00] transition-colors rounded-none or very slight rounded-md.",
+      "secondary": "bg-transparent border border-white/20 text-white hover:border-[#FF7A00] hover:text-[#FF7A00] transition-colors."
+    },
+    "cards": {
+      "marketing": "bg-surface border border-white/10 p-8 hover:-translate-y-1 transition-transform duration-300.",
+      "dashboard": "Flat bg-surface border border-white/10 p-6, no hover lift, focused on data display."
+    },
+    "forms": {
+      "inputs": "bg-black/50 border border-white/20 text-white focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition-all p-3."
+    }
+  },
+  "motion": {
+    "scroll": "Smooth momentum scrolling via Lenis.",
+    "entrance": "Staggered fade-up animations (framer-motion) for lists and grids.",
+    "hover": "Micro-interactions on all clickable elements. Explicit hover text/bg color shifts."
+  },
+  "accessibility": {
+    "contrast": "Ensure text over gradients/images meets 4.5:1 APCA standards. Use text-shadow if needed.",
+    "focus": "All interactive elements must have focus:ring-2 focus:ring-[#FF7A00].",
+    "testing": "All key functional and interactive elements MUST include a `data-testid` attribute (e.g., data-testid='submit-quote-btn')."
+  },
+  "media": {
+    "image_urls": {
+      "hero_background": {
+        "url": "https://images.unsplash.com/photo-1638184984605-af1f05249a56?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHw0fHxhYnN0cmFjdCUyMGRhcmslMjB0ZWNobm9sb2d5JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODc1ODE4MDd8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract dark grey overlapping geometric shapes for a tech vibe."
+      },
+      "service_website": {
+        "url": "https://images.unsplash.com/photo-1760548425425-e42e77fa38f1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTN8MHwxfHNlYXJjaHwxfHx3ZWIlMjBkZXZlbG9wZXIlMjBjb2RpbmclMjBkYXJrJTIwbW9kZXJufGVufDB8fHx8MTc4NzU4MTgwN3ww&ixlib=rb-4.1.0&q=85",
+        "description": "Web developer coding screen in dark mode."
+      },
+      "service_app": {
+        "url": "https://images.pexels.com/photos/20694602/pexels-photo-20694602.png?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Smartphone screen showing code for application development."
+      },
+      "service_maintenance": {
+        "url": "https://images.pexels.com/photos/37730211/pexels-photo-37730211.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Modern server rack with blue lighting for site maintenance."
+      },
+      "about_tech": {
+        "url": "https://images.pexels.com/photos/13027585/pexels-photo-13027585.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Dark futuristic tunnel with glowing neon stripes."
+      }
+    }
+  },
+  "3d_libraries": {
+    "recommendation": "Use framer-motion for smooth UI transitions and 2.5D layer effects in the marketing site. Heavy 3D libraries (Three.js) might distract from the clean 'IT Agency' vibe; focus on sharp typography and bento layouts instead."
+  },
+  "instructions_to_main_agent": [
+    "Build the frontend using React, Tailwind CSS, and Shadcn UI components.",
+    "Write React components using .jsx/.js extensions, not .tsx. All components must be .js compatible.",
+    "Implement the marketing pages (Home, About, Services, Contact) with high visual impact, utilizing generous spacing (p-12 to p-32) and the Bento Grid Protocol for features.",
+    "The client and admin dashboards MUST prioritize data clarity with denser grids (gap-6) and 1px borders, skipping heavy glassmorphism inside the dashboards.",
+    "Use 'Outfit' for all headings and 'Manrope' for body text. Enforce tracking-tighter on large headers.",
+    "Implement the auth flow accommodating JWT and Google OAuth logic (UI only).",
+    "Implement the Stripe payment UI flow in the client dashboard.",
+    "Adhere strictly to the Dark theme with Orange/Gold (#FF7A00) accents. Avoid generic SaaS blue.",
+    "Ensure all interactive elements have explicit hover and focus states for accessibility.",
+    "Include 'data-testid' attributes on all critical buttons and forms."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight. Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients. Don't make generic centered layouts, simplistic gradients, and uniform styling. Create depth through layered design elements with z-index hierarchy. Use glass-morphism effects with backdrop filters (12-24px blur) only where appropriate (like sticky headers). You MUST NOT apply universal transition. Eg: transition: all. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms. You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file. Always use modern button styles with interaction animations & color relevant to the app style. NEVER use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons. Every interaction needs micro-animations. Static = dead. Use 2-3x more spacing than feels comfortable. Prioritize using pre-existing components from src/components/ui. Use sonner for toasts. DO NOT use complete transparent background in header, overlays, any surface that has content under it."
+}

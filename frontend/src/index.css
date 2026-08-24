@@ -1,0 +1,188 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --labos-bg: #0a0a0a;
+    --labos-surface: #141414;
+    --labos-surface-2: #1f1f1f;
+    --labos-orange: #ff7a00;
+    --labos-orange-dark: #e66d00;
+    --labos-gold: #ffb800;
+    --labos-text: #ffffff;
+    --labos-muted: #a3a3a3;
+    --labos-border: rgba(255, 255, 255, 0.1);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    background-color: var(--labos-bg);
+    color: var(--labos-text);
+    min-height: 100vh;
+}
+
+body {
+    margin: 0;
+    font-family: "Manrope", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+    font-family: "Outfit", sans-serif;
+    letter-spacing: -0.02em;
+    color: #fff;
+}
+
+.font-heading {
+    font-family: "Outfit", sans-serif;
+}
+
+.font-mono-accent {
+    font-family: "JetBrains Mono", monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    color: var(--labos-orange);
+}
+
+@layer base {
+    :root {
+        --background: 0 0% 4%;
+        --foreground: 0 0% 98%;
+        --card: 0 0% 8%;
+        --card-foreground: 0 0% 98%;
+        --popover: 0 0% 8%;
+        --popover-foreground: 0 0% 98%;
+        --primary: 25 100% 50%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 0 0% 12%;
+        --secondary-foreground: 0 0% 98%;
+        --muted: 0 0% 12%;
+        --muted-foreground: 0 0% 64%;
+        --accent: 25 100% 50%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 0 0% 14%;
+        --input: 0 0% 12%;
+        --ring: 25 100% 50%;
+        --radius: 0.375rem;
+    }
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+    background: #262626;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #ff7a00;
+}
+
+/* Grain texture overlay for dark surfaces */
+.grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' /></filter><rect width='120' height='120' filter='url(%23n)' opacity='0.15' /></svg>");
+    pointer-events: none;
+    opacity: 0.35;
+    mix-blend-mode: overlay;
+}
+
+/* Orange focus ring for form inputs */
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+}
+
+/* Button shine */
+.btn-primary {
+    background-color: var(--labos-orange);
+    color: #fff;
+    padding: 0.875rem 1.75rem;
+    font-family: "Outfit", sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition:
+        background-color 0.25s ease,
+        box-shadow 0.25s ease,
+        transform 0.25s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: none;
+    cursor: pointer;
+}
+.btn-primary:hover {
+    background-color: var(--labos-orange-dark);
+    box-shadow: 0 0 30px rgba(255, 122, 0, 0.35);
+    transform: translateY(-1px);
+}
+
+.btn-outline {
+    background: transparent;
+    color: #fff;
+    padding: 0.875rem 1.75rem;
+    font-family: "Outfit", sans-serif;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition:
+        border-color 0.25s ease,
+        color 0.25s ease,
+        background-color 0.25s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+.btn-outline:hover {
+    border-color: var(--labos-orange);
+    color: var(--labos-orange);
+}
+
+/* Section overline */
+.overline {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--labos-orange);
+}
+
+/* Card lift */
+.card-lift {
+    transition:
+        transform 0.35s cubic-bezier(0.2, 0.7, 0.3, 1),
+        border-color 0.35s;
+}
+.card-lift:hover {
+    transform: translateY(-6px);
+    border-color: rgba(255, 122, 0, 0.5);
+}

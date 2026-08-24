@@ -1,0 +1,22 @@
+/* App-level styles kept minimal - most styling lives in Tailwind + index.css */
+.App {
+    min-height: 100vh;
+    background-color: #0a0a0a;
+    color: #fff;
+}
+
+/* Marquee for hero background subtle motion */
+@keyframes slow-drift {
+    0% {
+        transform: translate(0, 0) scale(1.02);
+    }
+    50% {
+        transform: translate(-1%, -0.5%) scale(1.05);
+    }
+    100% {
+        transform: translate(0, 0) scale(1.02);
+    }
+}
+.hero-bg {
+    animation: slow-drift 22s ease-in-out infinite;
+}
