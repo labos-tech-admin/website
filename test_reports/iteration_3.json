@@ -1,0 +1,45 @@
+{
+  "summary": "Full backend + frontend regression for the Stripe->Razorpay migration and INR pricing. Backend: rewrote the payments section of /app/backend/tests/backend_test.py for Razorpay (checkout graceful 400, HMAC signature verify matrix, ownership 403, webhook signature validation + paid propagation, status 200/404) and re-ran full suite: 41/41 passed. Frontend: verified INR formatting on /services (all 7 packages in en-IN format, no $), unauth Book Package -> /login, client login, package booking -> /api/payments/checkout call -> graceful error toast 'Payment gateway error: Authentication failed', client dashboard Pay button triggers same flow with rupee amounts, /payment/success static page renders, admin login lands on /admin, admin stats (Revenue in Rs), edit modal 'Quoted Amount (INR)' saves and reflects, all 3 admin tabs load, contact form submits, home nav OK, mobile 390px no horizontal overflow. One real defect found and fixed in scope: public/index.html changes (Razorpay checkout.js script tag + page title) were NOT being served because CRA dev-server caches the HTML template at boot - window.Razorpay was undefined; a frontend supervisor restart fixed it and the SDK now loads (typeof window.Razorpay === 'function').",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/payments/checkout", "issue": "Raw gateway exception is echoed to the client (detail='Payment gateway error: Authentication failed'). Correct 400 status and non-leaky today, but consider a generic user-facing message + logged internals so a future Razorpay error body cannot leak key/account details."},
+      {"endpoint": "POST /api/webhook/razorpay", "issue": "If RAZORPAY_WEBHOOK_SECRET were unset it defaults to empty string and would still compute an HMAC (no explicit misconfiguration error). Behaviour is safe (always 400) but the failure is silent."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "public/index.html (dev server)", "issue": "Razorpay checkout.js script tag / title were not in the served HTML until frontend was restarted. Any future edit to public/index.html needs `sudo supervisorctl restart frontend` - hot reload does not pick it up. Fixed by restart during this run.", "selector": "script[src*='checkout.razorpay.com']", "priority": "HIGH (resolved)"},
+      {"component": "Login redirect", "issue": "Clicking 'Book Package' while unauthenticated correctly redirects to /login, but after successful login the user is sent to /services instead of back to /book?service=...&package=... - the intended package selection is lost.", "selector": "[data-testid='login-submit-btn']", "priority": "MEDIUM"},
+      {"component": "BookService.jsx quote sidebar", "issue": "Leftover Stripe copy: 'Approve & pay via Stripe' (line ~220) still shown on the Custom Quote sidebar after the Razorpay migration.", "selector": "[data-testid='book-service-page'] aside", "priority": "MEDIUM"},
+      {"component": "services_catalog.py app_pro highlight", "issue": "Package highlight still reads 'Payments (Stripe)' - surfaces on /services cards.", "selector": "[data-testid='package-card-app_pro']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Toast (sonner) top-right", "issues": ["Error/success toasts render over the navbar and visually cover the Logout / Get Started buttons for their whole duration (observed on /dashboard and /admin). Consider offsetting the toaster below the header."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Replace 'Approve & pay via Stripe' with Razorpay in BookService.jsx quote sidebar and 'Payments (Stripe)' in services_catalog.py app_pro highlights.",
+    "Persist the post-login redirect target so 'Book Package' -> login -> returns to the booking form with the chosen package.",
+    "Offset sonner toaster so toasts do not overlay navbar action buttons.",
+    "Optional: return a generic message for gateway failures and log the raw Razorpay error server-side.",
+    "Remember: edits to /app/frontend/public/index.html require a frontend restart to take effect."
+  ],
+  "critical_code_review_comments": [
+    "server.py still imports emergentintegrations StripeCheckout/CheckoutSessionRequest although Stripe is fully removed - dead import, drop it to avoid a hard startup failure if the package is ever unavailable.",
+    "RazorpayVerifyRequest is declared inline with __import__('pydantic').BaseModel inside server.py - move it to models.py with a normal import for readability.",
+    "/api/payments/status/{order_id} is unauthenticated: any caller who knows an order_id can read status + booking_id. Add auth/ownership check.",
+    "checkout stores both session_id and order_id with the same value for legacy schema continuity; plan a migration to drop session_id.",
+    "razorpay.js resolves/rejects a Promise from an async executor; errors thrown before the try block would be swallowed - acceptable but worth tightening."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (41/41 pytest)", "frontend": "95% (all flows pass; login-redirect target + leftover Stripe copy are the gaps)"},
+  "seed_data_creation": "Ephemeral registered clients test_client_*/test_reg_*/test_other_*@labos.dev, TEST_ bookings and one contact via pytest; payment_transactions rows seeded for signature/webhook tests were deleted in teardown. UI run created one package booking + one contact for test1@labos.dev; booking amount temporarily edited via admin UI was restored to 39999.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin@labos.tech / Labos@2026 (admin), test1@labos.dev / Test@1234 (client). NOTE: /app/memory/test_credentials.md is stale - it still documents Stripe endpoints (/api/payments/status/{session_id}, /api/webhook/stripe) and a Stripe test card, and lists client@test.com/Client@2026 instead of test1@labos.dev. Please update.",
+  "context_for_next_testing_agent": "Backend suite at /app/backend/tests/backend_test.py is Razorpay-ready: TestPayments covers checkout->400 (placeholder keys), verify bad-sig 400 / good-sig-no-txn 404 / good-sig+seeded-txn 200 with booking->in_progress, 403 cross-user, 401 unauth, 422 missing fields, webhook bad/missing sig 400 and valid sig marking paid. Signature helper _rzp_signature() reads RAZORPAY_KEY_SECRET from /app/backend/.env. Do NOT expect /payments/checkout to return 200 until real Razorpay keys are configured. Frontend: window.Razorpay loads only after a frontend restart following index.html edits.",
+  "rca_of_the_issue": "Razorpay SDK appeared missing on the frontend (window.Razorpay undefined, no script tag in served HTML, title still 'Emergent | Fullstack App'). Root cause: CRA/webpack-dev-server renders public/index.html through HtmlWebpackPlugin at server start and does not watch it, so the newly added <script src='https://checkout.razorpay.com/v1/checkout.js'> was never served. Reproduced with curl on both localhost:3000 and the public URL. Mitigation: `sudo supervisorctl restart frontend`; verified typeof window.Razorpay === 'function' afterwards."
+}

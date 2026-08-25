@@ -29,6 +29,9 @@ from services_catalog import SERVICES, get_service, get_package
 from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout, CheckoutSessionRequest,
 )
+import razorpay
+import hmac
+import hashlib
 
 # ---------- Setup ----------
 mongo_url = os.environ["MONGO_URL"]
@@ -51,7 +54,7 @@ async def on_startup():
     await db.user_sessions.create_index("session_token", unique=True)
     await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.bookings.create_index("booking_id", unique=True)
-    await db.payment_transactions.create_index("session_id", unique=True)
+    await db.payment_transactions.create_index("order_id", sparse=True)
 
     # Seed admin
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@labos.tech").lower()
@@ -287,16 +290,19 @@ async def get_booking(booking_id: str, user: dict = Depends(_current_user_dep)):
     return booking
 
 
-# ---------- Payments (Stripe Flow B) ----------
-def _get_stripe(request: Request) -> StripeCheckout:
-    host_url = str(request.base_url)
-    webhook_url = f"{host_url.rstrip('/')}/api/webhook/stripe"
-    return StripeCheckout(api_key=os.environ["STRIPE_API_KEY"], webhook_url=webhook_url)
+# ---------- Payments (Razorpay) ----------
+def _get_razorpay() -> razorpay.Client:
+    return razorpay.Client(auth=(
+        os.environ["RAZORPAY_KEY_ID"],
+        os.environ["RAZORPAY_KEY_SECRET"],
+    ))
 
 
 @api.post("/payments/checkout")
-async def create_checkout(payload: CheckoutRequest, request: Request,
+async def create_checkout(payload: CheckoutRequest,
                           user: dict = Depends(_current_user_dep)):
+    """Create a Razorpay Order for a booking. Returns order details for the
+    frontend to open the Razorpay Checkout modal."""
     booking = await db.bookings.find_one({"booking_id": payload.booking_id})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -307,90 +313,143 @@ async def create_checkout(payload: CheckoutRequest, request: Request,
     if booking.get("payment_status") == "paid":
         raise HTTPException(status_code=400, detail="Already paid")
 
-    origin = payload.origin_url.rstrip("/")
-    stripe_checkout = _get_stripe(request)
-    session_req = CheckoutSessionRequest(
-        amount=float(booking["amount"]),
-        currency="usd",
-        success_url=f"{origin}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{origin}/dashboard",
-        metadata={
-            "booking_id": booking["booking_id"],
-            "user_id": user["user_id"],
-        },
-    )
-    session = await stripe_checkout.create_checkout_session(session_req)
+    amount_paise = int(round(float(booking["amount"]) * 100))
+    receipt = f"lb_{booking['booking_id']}"[:40]
+
+    try:
+        client = _get_razorpay()
+        order = client.order.create({
+            "amount": amount_paise,
+            "currency": "INR",
+            "receipt": receipt,
+            "notes": {
+                "booking_id": booking["booking_id"],
+                "user_id": user["user_id"],
+                "project_title": booking.get("project_title", ""),
+            },
+        })
+    except Exception as e:
+        logger.error("Razorpay order.create failed: %s", e)
+        raise HTTPException(status_code=400, detail=f"Payment gateway error: {e}")
 
     await db.payment_transactions.insert_one({
-        "session_id": session.session_id,
+        "session_id": order["id"],  # kept as 'session_id' for schema continuity
+        "order_id": order["id"],
         "booking_id": booking["booking_id"],
         "user_id": user["user_id"],
         "amount": float(booking["amount"]),
-        "currency": "usd",
+        "amount_paise": amount_paise,
+        "currency": "INR",
         "status": "initiated",
         "payment_status": "pending",
         "created_at": utcnow().isoformat(),
         "updated_at": utcnow().isoformat(),
     })
-    await db.bookings.update_one({"booking_id": booking["booking_id"]},
-                                 {"$set": {"payment_status": "pending",
-                                           "updated_at": utcnow().isoformat()}})
-    return {"checkout_url": session.url, "session_id": session.session_id}
+    await db.bookings.update_one(
+        {"booking_id": booking["booking_id"]},
+        {"$set": {"payment_status": "pending", "updated_at": utcnow().isoformat()}},
+    )
+    return {
+        "order_id": order["id"],
+        "amount": amount_paise,
+        "currency": "INR",
+        "key_id": os.environ["RAZORPAY_KEY_ID"],
+        "booking_id": booking["booking_id"],
+        "project_title": booking.get("project_title", ""),
+        "customer_name": user.get("name", ""),
+        "customer_email": user.get("email", ""),
+    }
 
 
-@api.get("/payments/status/{session_id}")
-async def payment_status(session_id: str, request: Request):
-    record = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+class RazorpayVerifyRequest(__import__("pydantic").BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+
+
+@api.post("/payments/verify")
+async def verify_payment(payload: RazorpayVerifyRequest,
+                         user: dict = Depends(_current_user_dep)):
+    """Verify Razorpay Checkout signature and mark booking paid."""
+    secret = os.environ["RAZORPAY_KEY_SECRET"].encode()
+    body = f"{payload.razorpay_order_id}|{payload.razorpay_payment_id}".encode()
+    expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, payload.razorpay_signature):
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+
+    txn = await db.payment_transactions.find_one({"order_id": payload.razorpay_order_id})
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if txn["user_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    await db.payment_transactions.update_one(
+        {"order_id": payload.razorpay_order_id},
+        {"$set": {
+            "status": "completed",
+            "payment_status": "paid",
+            "razorpay_payment_id": payload.razorpay_payment_id,
+            "updated_at": utcnow().isoformat(),
+        }},
+    )
+    await db.bookings.update_one(
+        {"booking_id": txn["booking_id"]},
+        {"$set": {
+            "payment_status": "paid",
+            "status": "in_progress",
+            "updated_at": utcnow().isoformat(),
+        }},
+    )
+    return {"ok": True, "booking_id": txn["booking_id"]}
+
+
+@api.get("/payments/status/{order_id}")
+async def payment_status(order_id: str):
+    record = await db.payment_transactions.find_one({"order_id": order_id}, {"_id": 0})
+    if not record:
+        # Backward-compat: some records might only have session_id
+        record = await db.payment_transactions.find_one({"session_id": order_id}, {"_id": 0})
     if not record:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    if record.get("payment_status") != "paid":
-        try:
-            stripe_checkout = _get_stripe(request)
-            status = await stripe_checkout.get_checkout_status(session_id)
-            if status.payment_status == "paid" or status.status == "complete":
+    return {
+        "order_id": record.get("order_id") or record.get("session_id"),
+        "status": record["status"],
+        "payment_status": record["payment_status"],
+        "booking_id": record.get("booking_id"),
+    }
+
+
+@api.post("/webhook/razorpay")
+async def razorpay_webhook(request: Request):
+    """Fallback path in case the client never completes the verify call.
+    Configure this URL in Razorpay Dashboard → Webhooks with the same secret."""
+    body = await request.body()
+    sig = request.headers.get("X-Razorpay-Signature", "")
+    secret = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "").encode()
+    expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
+    if not (sig and hmac.compare_digest(expected, sig)):
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+
+    import json as _json
+    event = _json.loads(body.decode() or "{}")
+    if event.get("event") == "payment.captured":
+        payment = event.get("payload", {}).get("payment", {}).get("entity", {})
+        order_id = payment.get("order_id")
+        payment_id = payment.get("id")
+        if order_id:
+            txn = await db.payment_transactions.find_one({"order_id": order_id})
+            if txn and txn.get("payment_status") != "paid":
                 await db.payment_transactions.update_one(
-                    {"session_id": session_id, "payment_status": {"$ne": "paid"}},
+                    {"order_id": order_id},
                     {"$set": {"status": "completed", "payment_status": "paid",
+                              "razorpay_payment_id": payment_id,
                               "updated_at": utcnow().isoformat()}},
                 )
                 await db.bookings.update_one(
-                    {"booking_id": record["booking_id"]},
-                    {"$set": {"payment_status": "paid",
-                              "status": "in_progress",
+                    {"booking_id": txn["booking_id"]},
+                    {"$set": {"payment_status": "paid", "status": "in_progress",
                               "updated_at": utcnow().isoformat()}},
                 )
-                record = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
-        except Exception as e:
-            logger.warning("Stripe status poll failed: %s", e)
-    return {"session_id": record["session_id"],
-            "status": record["status"],
-            "payment_status": record["payment_status"]}
-
-
-@api.post("/webhook/stripe")
-async def stripe_webhook(request: Request):
-    body = await request.body()
-    sig = request.headers.get("Stripe-Signature", "")
-    try:
-        stripe_checkout = _get_stripe(request)
-        wh = await stripe_checkout.handle_webhook(body, sig)
-    except Exception as e:
-        logger.error("Webhook error: %s", e)
-        raise HTTPException(status_code=400, detail="Invalid webhook")
-    if wh.payment_status == "paid":
-        await db.payment_transactions.update_one(
-            {"session_id": wh.session_id, "payment_status": {"$ne": "paid"}},
-            {"$set": {"status": "completed", "payment_status": "paid",
-                      "updated_at": utcnow().isoformat()}},
-        )
-        booking_id = (wh.metadata or {}).get("booking_id")
-        if booking_id:
-            await db.bookings.update_one(
-                {"booking_id": booking_id},
-                {"$set": {"payment_status": "paid",
-                          "status": "in_progress",
-                          "updated_at": utcnow().isoformat()}},
-            )
     return {"received": True}
 
 

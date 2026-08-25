@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { api, formatApiErrorDetail } from "@/lib/api";
+import { payWithRazorpay } from "@/lib/razorpay";
 import { ArrowRight, Check } from "lucide-react";
 
 export default function BookService() {
@@ -59,12 +60,16 @@ export default function BookService() {
       const { data: booking } = await api.post("/bookings", payload);
       toast.success("Booking submitted!");
       if (bookingType === "package" && booking.amount) {
-        // Immediately kick off checkout
-        const { data: checkout } = await api.post("/payments/checkout", {
-          booking_id: booking.booking_id,
-          origin_url: window.location.origin,
-        });
-        window.location.href = checkout.checkout_url;
+        // Open Razorpay modal immediately
+        try {
+          await payWithRazorpay(booking.booking_id);
+          toast.success("Payment successful!");
+          navigate("/payment/success?booking=" + booking.booking_id);
+        } catch (err) {
+          const msg = err?.response?.data?.detail || err?.message || "Payment cancelled";
+          toast.error(msg);
+          navigate("/dashboard");
+        }
       } else {
         navigate("/dashboard");
       }
@@ -148,7 +153,7 @@ export default function BookService() {
             {bookingType === "quote" && (
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="overline">Budget (USD)</label>
+                  <label className="overline">Budget (INR)</label>
                   <input
                     type="number"
                     min="0"
@@ -193,7 +198,7 @@ export default function BookService() {
                 <h3 className="font-heading text-xl font-bold">{selectedPackage.name}</h3>
                 <p className="text-white/60 text-sm mt-1 mb-4">{selectedPackage.description}</p>
                 <p className="font-heading text-3xl font-extrabold text-[#FF7A00] mb-4">
-                  ${selectedPackage.amount.toLocaleString()}
+                  ₹{selectedPackage.amount.toLocaleString("en-IN")}
                 </p>
                 <ul className="space-y-2">
                   {selectedPackage.highlights.map((h) => (
@@ -203,7 +208,7 @@ export default function BookService() {
                   ))}
                 </ul>
                 <p className="text-xs text-white/50 mt-6">
-                  You’ll be redirected to Stripe. Test card: <code className="text-[#FF7A00]">4242 4242 4242 4242</code>
+                  You'll be charged via Razorpay. Test card: <code className="text-[#FF7A00]">4111 1111 1111 1111</code>
                 </p>
               </>
             ) : (
@@ -212,7 +217,7 @@ export default function BookService() {
                 <ul className="space-y-3 text-sm text-white/70">
                   <li className="flex gap-2"><Check className="w-4 h-4 text-[#FF7A00] mt-0.5 shrink-0" /> Submit your requirements</li>
                   <li className="flex gap-2"><Check className="w-4 h-4 text-[#FF7A00] mt-0.5 shrink-0" /> Get a quote within 24 hrs</li>
-                  <li className="flex gap-2"><Check className="w-4 h-4 text-[#FF7A00] mt-0.5 shrink-0" /> Approve & pay via Stripe</li>
+                  <li className="flex gap-2"><Check className="w-4 h-4 text-[#FF7A00] mt-0.5 shrink-0" /> Approve & pay via Razorpay</li>
                   <li className="flex gap-2"><Check className="w-4 h-4 text-[#FF7A00] mt-0.5 shrink-0" /> Track progress on your dashboard</li>
                 </ul>
               </>

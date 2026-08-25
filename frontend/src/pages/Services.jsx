@@ -62,7 +62,7 @@ export default function Services() {
                     <h3 className="font-heading text-2xl font-bold">{p.name}</h3>
                     <p className="text-white/60 text-sm mt-1 mb-5">{p.description}</p>
                     <p className="font-heading text-4xl font-extrabold text-[#FF7A00] mb-6">
-                      ${p.amount.toLocaleString()}
+                      ₹{p.amount.toLocaleString("en-IN")}
                       <span className="text-sm font-medium text-white/50 ml-2">
                         {p.package_id.includes("monthly") ? "/mo" : "one-time"}
                       </span>

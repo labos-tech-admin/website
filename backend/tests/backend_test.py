@@ -103,8 +103,26 @@ class TestServices:
         assert r.status_code == 200
         assert r.json()["slug"] == "website-building"
         starter = [p for p in r.json()["packages"] if p["package_id"] == "website_starter"][0]
-        assert starter["amount"] == 499.0
+        assert starter["amount"] == 39999.0
         assert requests.get(f"{API}/services/nope", timeout=30).status_code == 404
+
+    # INR currency migration: verify all package amounts are the new INR values
+    def test_all_package_amounts_inr(self):
+        expected = {
+            "website_starter": 39999.0,
+            "website_business": 119999.0,
+            "website_premium": 239999.0,
+            "maint_basic_monthly": 7999.0,
+            "maint_pro_monthly": 19999.0,
+            "app_mvp": 159999.0,
+            "app_pro": 399999.0,
+        }
+        r = requests.get(f"{API}/services", timeout=30)
+        assert r.status_code == 200
+        found = {p["package_id"]: p["amount"] for s in r.json() for p in s["packages"]}
+        for pid, amt in expected.items():
+            assert pid in found, f"missing package {pid}: got {list(found)}"
+            assert found[pid] == amt, f"{pid} expected {amt} got {found[pid]}"
 
 
 # ---------------- Auth ----------------
@@ -178,13 +196,13 @@ class TestAuth:
 class TestBookings:
     def test_create_package_booking(self, client_session, package_booking):
         b = package_booking
-        assert b["amount"] == 499.0
+        assert b["amount"] == 39999.0
         assert b["package_name"] == "Starter Site"
         assert b["service_title"] == "Website Building"
         assert b["status"] == "new" and b["payment_status"] == "unpaid"
         assert "_id" not in b
         g = client_session.get(f"{API}/bookings/{b['booking_id']}", timeout=30)
-        assert g.status_code == 200 and g.json()["amount"] == 499.0
+        assert g.status_code == 200 and g.json()["amount"] == 39999.0
 
     def test_create_quote_booking(self, quote_booking):
         b = quote_booking
@@ -230,25 +248,175 @@ class TestBookings:
         assert r.status_code == 403
 
 
-# ---------------- Payments ----------------
+# ---------------- Payments (Razorpay) ----------------
+BACKEND_ENV = dotenv_values("/app/backend/.env")
+
+
+def _rzp_signature(order_id: str, payment_id: str, secret: str | None = None) -> str:
+    import hmac as _hmac
+    import hashlib as _hashlib
+    secret = secret or BACKEND_ENV["RAZORPAY_KEY_SECRET"]
+    return _hmac.new(secret.encode(), f"{order_id}|{payment_id}".encode(), _hashlib.sha256).hexdigest()
+
+
 class TestPayments:
-    def test_checkout_and_status(self, client_session, package_booking):
+    def test_checkout_graceful_400_with_placeholder_keys(self, client_session, package_booking):
+        """Placeholder Razorpay keys -> order.create fails. Must be a clean 400, not 500/502."""
         bid = package_booking["booking_id"]
         r = client_session.post(f"{API}/payments/checkout", json={
             "booking_id": bid, "origin_url": BASE_URL}, timeout=60)
-        assert r.status_code == 200, r.text
-        data = r.json()
-        assert data["checkout_url"].startswith("https://")
-        assert isinstance(data["session_id"], str) and data["session_id"]
-        b = client_session.get(f"{API}/bookings/{bid}", timeout=30).json()
-        assert b["payment_status"] == "pending"
+        assert r.status_code == 400, f"expected 400 got {r.status_code}: {r.text[:300]}"
+        detail = r.json().get("detail", "")
+        assert "Payment gateway error" in detail, detail
+        assert "Authentication failed" in detail, detail
 
-        st = requests.get(f"{API}/payments/status/{data['session_id']}", timeout=60)
-        assert st.status_code == 200, st.text
-        d = st.json()
-        assert d["session_id"] == data["session_id"]
-        assert d["payment_status"] in ("pending", "paid", "unpaid")
-        assert "status" in d
+    def test_verify_bad_signature_400(self, client_session):
+        r = client_session.post(f"{API}/payments/verify", json={
+            "razorpay_order_id": "order_TESTbad",
+            "razorpay_payment_id": "pay_TESTbad",
+            "razorpay_signature": "deadbeef",
+        }, timeout=30)
+        assert r.status_code == 400, r.text
+        assert r.json()["detail"] == "Invalid payment signature"
+
+    def test_verify_good_signature_no_txn_404(self, client_session):
+        oid = f"order_TEST{uuid.uuid4().hex[:8]}"
+        pid = f"pay_TEST{uuid.uuid4().hex[:8]}"
+        r = client_session.post(f"{API}/payments/verify", json={
+            "razorpay_order_id": oid,
+            "razorpay_payment_id": pid,
+            "razorpay_signature": _rzp_signature(oid, pid),
+        }, timeout=30)
+        assert r.status_code == 404, f"expected 404 got {r.status_code}: {r.text[:300]}"
+        assert r.json()["detail"] == "Transaction not found"
+
+    def test_verify_requires_auth(self):
+        oid, pid = "order_TESTauth", "pay_TESTauth"
+        r = requests.post(f"{API}/payments/verify", json={
+            "razorpay_order_id": oid, "razorpay_payment_id": pid,
+            "razorpay_signature": _rzp_signature(oid, pid)}, timeout=30)
+        assert r.status_code == 401
+
+    def test_verify_missing_fields_422(self, client_session):
+        r = client_session.post(f"{API}/payments/verify", json={"razorpay_order_id": "x"}, timeout=30)
+        assert r.status_code == 422
+
+    def test_verify_full_flow_with_seeded_txn(self, client_session, quote_booking):
+        """Seed a payment_transaction directly, then verify with a valid HMAC signature.
+        Confirms signature math + DB updates (txn paid, booking in_progress)."""
+        from pymongo import MongoClient
+        me = client_session.get(f"{API}/auth/me", timeout=30).json()
+        oid = f"order_TEST{uuid.uuid4().hex[:10]}"
+        pid = f"pay_TEST{uuid.uuid4().hex[:10]}"
+        mc = MongoClient(BACKEND_ENV["MONGO_URL"])
+        col = mc[BACKEND_ENV["DB_NAME"]].payment_transactions
+        col.insert_one({
+            "session_id": oid, "order_id": oid,
+            "booking_id": quote_booking["booking_id"],
+            "user_id": me["user_id"], "amount": 50000.0, "amount_paise": 5000000,
+            "currency": "INR", "status": "initiated", "payment_status": "pending",
+        })
+        try:
+            # status endpoint should now find it
+            st = requests.get(f"{API}/payments/status/{oid}", timeout=30)
+            assert st.status_code == 200, st.text
+            sd = st.json()
+            assert sd["order_id"] == oid
+            assert sd["payment_status"] == "pending"
+            assert sd["booking_id"] == quote_booking["booking_id"]
+
+            r = client_session.post(f"{API}/payments/verify", json={
+                "razorpay_order_id": oid, "razorpay_payment_id": pid,
+                "razorpay_signature": _rzp_signature(oid, pid)}, timeout=30)
+            assert r.status_code == 200, r.text
+            assert r.json()["ok"] is True
+            assert r.json()["booking_id"] == quote_booking["booking_id"]
+
+            # persistence checks
+            st2 = requests.get(f"{API}/payments/status/{oid}", timeout=30).json()
+            assert st2["status"] == "completed" and st2["payment_status"] == "paid"
+            b = client_session.get(f"{API}/bookings/{quote_booking['booking_id']}", timeout=30).json()
+            assert b["payment_status"] == "paid"
+            assert b["status"] == "in_progress"
+        finally:
+            col.delete_one({"order_id": oid})
+            mc.close()
+
+    def test_verify_other_user_forbidden(self, quote_booking):
+        """Signature valid + txn exists but owned by another user -> 403."""
+        from pymongo import MongoClient
+        s = requests.Session()
+        s.post(f"{API}/auth/register", json={
+            "email": f"test_pay_{uuid.uuid4().hex[:8]}@labos.dev",
+            "password": "Test@1234", "name": "TEST Pay Other"}, timeout=30)
+        oid = f"order_TEST{uuid.uuid4().hex[:10]}"
+        pid = f"pay_TEST{uuid.uuid4().hex[:10]}"
+        mc = MongoClient(BACKEND_ENV["MONGO_URL"])
+        col = mc[BACKEND_ENV["DB_NAME"]].payment_transactions
+        col.insert_one({
+            "session_id": oid, "order_id": oid, "booking_id": quote_booking["booking_id"],
+            "user_id": "user_not_this_one", "amount": 100.0, "currency": "INR",
+            "status": "initiated", "payment_status": "pending"})
+        try:
+            r = s.post(f"{API}/payments/verify", json={
+                "razorpay_order_id": oid, "razorpay_payment_id": pid,
+                "razorpay_signature": _rzp_signature(oid, pid)}, timeout=30)
+            assert r.status_code == 403, f"expected 403 got {r.status_code}: {r.text[:200]}"
+        finally:
+            col.delete_one({"order_id": oid})
+            mc.close()
+
+    # ---- Webhook ----
+    def test_webhook_bad_signature_400(self):
+        r = requests.post(f"{API}/webhook/razorpay", data=b'{"event":"payment.captured"}',
+                          headers={"X-Razorpay-Signature": "bad", "Content-Type": "application/json"},
+                          timeout=30)
+        assert r.status_code == 400, r.text
+        assert r.json()["detail"] == "Invalid webhook signature"
+
+    def test_webhook_missing_signature_400(self):
+        r = requests.post(f"{API}/webhook/razorpay", data=b'{}',
+                          headers={"Content-Type": "application/json"}, timeout=30)
+        assert r.status_code == 400
+
+    def test_webhook_valid_signature_marks_paid(self, client_session):
+        import hmac as _hmac
+        import hashlib as _hashlib
+        import json as _json
+        from pymongo import MongoClient
+        # dedicated booking so we don't clash with other tests
+        b = client_session.post(f"{API}/bookings", json={
+            "service_slug": "website-building", "package_id": "website_business",
+            "booking_type": "package", "project_title": "TEST webhook booking",
+            "requirements": "webhook flow test"}, timeout=30).json()
+        me = client_session.get(f"{API}/auth/me", timeout=30).json()
+        oid = f"order_TEST{uuid.uuid4().hex[:10]}"
+        pid = f"pay_TEST{uuid.uuid4().hex[:10]}"
+        mc = MongoClient(BACKEND_ENV["MONGO_URL"])
+        col = mc[BACKEND_ENV["DB_NAME"]].payment_transactions
+        col.insert_one({
+            "session_id": oid, "order_id": oid, "booking_id": b["booking_id"],
+            "user_id": me["user_id"], "amount": 119999.0, "currency": "INR",
+            "status": "initiated", "payment_status": "pending"})
+        try:
+            body = _json.dumps({
+                "event": "payment.captured",
+                "payload": {"payment": {"entity": {"id": pid, "order_id": oid}}},
+            }).encode()
+            sig = _hmac.new(BACKEND_ENV["RAZORPAY_WEBHOOK_SECRET"].encode(), body,
+                            _hashlib.sha256).hexdigest()
+            r = requests.post(f"{API}/webhook/razorpay", data=body,
+                              headers={"X-Razorpay-Signature": sig,
+                                       "Content-Type": "application/json"}, timeout=30)
+            assert r.status_code == 200, r.text
+            assert r.json() == {"received": True}
+            st = requests.get(f"{API}/payments/status/{oid}", timeout=30).json()
+            assert st["payment_status"] == "paid" and st["status"] == "completed"
+            bk = client_session.get(f"{API}/bookings/{b['booking_id']}", timeout=30).json()
+            assert bk["payment_status"] == "paid" and bk["status"] == "in_progress"
+        finally:
+            col.delete_one({"order_id": oid})
+            mc.close()
 
     def test_status_unknown_session_404(self):
         r = requests.get(f"{API}/payments/status/sess_does_not_exist", timeout=30)
@@ -302,22 +470,27 @@ class TestAdmin:
                 assert "_id" not in row
                 assert "password_hash" not in row
 
-    def test_update_quote_booking_then_pay(self, admin_client, client_session, quote_booking):
-        bid = quote_booking["booking_id"]
+    def test_update_quote_booking_then_pay(self, admin_client, client_session):
+        fresh = client_session.post(f"{API}/bookings", json={
+            "service_slug": "application-building", "booking_type": "quote",
+            "project_title": "TEST admin quote flow", "requirements": "quote me please"},
+            timeout=30).json()
+        bid = fresh["booking_id"]
         r = admin_client.patch(f"{API}/admin/bookings/{bid}", json={
-            "amount": 2500, "status": "quoted", "admin_notes": "quoted at 2500"}, timeout=30)
+            "amount": 50000, "status": "quoted", "admin_notes": "quoted at 50000"}, timeout=30)
         assert r.status_code == 200, r.text
         d = r.json()
-        assert d["amount"] == 2500
+        assert d["amount"] == 50000
         assert d["status"] == "quoted"
-        assert d["admin_notes"] == "quoted at 2500"
+        assert d["admin_notes"] == "quoted at 50000"
         mine = client_session.get(f"{API}/bookings/mine", timeout=30).json()
         row = [b for b in mine if b["booking_id"] == bid][0]
-        assert row["amount"] == 2500 and row["status"] == "quoted"
+        assert row["amount"] == 50000 and row["status"] == "quoted"
+        # Razorpay placeholder keys -> graceful 400
         c = client_session.post(f"{API}/payments/checkout", json={
             "booking_id": bid, "origin_url": BASE_URL}, timeout=60)
-        assert c.status_code == 200, c.text
-        assert c.json()["checkout_url"].startswith("https://")
+        assert c.status_code == 400, f"expected 400 got {c.status_code}: {c.text[:200]}"
+        assert "Payment gateway error" in c.json()["detail"]
 
     def test_update_missing_booking_404(self, admin_client):
         r = admin_client.patch(f"{API}/admin/bookings/bk_missing", json={"status": "quoted"}, timeout=30)

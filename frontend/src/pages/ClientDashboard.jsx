@@ -5,6 +5,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { useAuth } from "@/context/AuthContext";
 import { api, formatApiErrorDetail } from "@/lib/api";
+import { payWithRazorpay } from "@/lib/razorpay";
 import { CreditCard, Plus, Clock } from "lucide-react";
 
 const statusColor = {
@@ -42,13 +43,12 @@ export default function ClientDashboard() {
 
   const pay = async (booking) => {
     try {
-      const { data } = await api.post("/payments/checkout", {
-        booking_id: booking.booking_id,
-        origin_url: window.location.origin,
-      });
-      window.location.href = data.checkout_url;
+      await payWithRazorpay(booking.booking_id);
+      toast.success("Payment successful!");
+      await load();
     } catch (err) {
-      toast.error(formatApiErrorDetail(err.response?.data?.detail) || "Failed to start payment.");
+      const msg = err?.response?.data?.detail || err?.message || "Payment cancelled";
+      toast.error(msg);
     }
   };
 
@@ -100,10 +100,10 @@ export default function ClientDashboard() {
                 <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-white/10">
                   <div className="flex flex-wrap gap-6 text-sm">
                     {b.amount != null && (
-                      <div><span className="text-white/50">Amount</span> <span className="text-[#FF7A00] font-bold">${b.amount.toLocaleString()}</span></div>
+                      <div><span className="text-white/50">Amount</span> <span className="text-[#FF7A00] font-bold">₹{b.amount.toLocaleString("en-IN")}</span></div>
                     )}
                     {b.timeline && <div><span className="text-white/50">Timeline</span> <span className="text-white">{b.timeline}</span></div>}
-                    {b.budget && <div><span className="text-white/50">Budget</span> <span className="text-white">${b.budget.toLocaleString()}</span></div>}
+                    {b.budget && <div><span className="text-white/50">Budget</span> <span className="text-white">₹{b.budget.toLocaleString("en-IN")}</span></div>}
                   </div>
                   {b.amount && b.payment_status !== "paid" && (
                     <button
@@ -111,7 +111,7 @@ export default function ClientDashboard() {
                       className="btn-primary text-sm"
                       data-testid={`booking-pay-btn-${b.booking_id}`}
                     >
-                      <CreditCard className="w-4 h-4" /> Pay ${b.amount.toLocaleString()}
+                      <CreditCard className="w-4 h-4" /> Pay ₹{b.amount.toLocaleString("en-IN")}
                     </button>
                   )}
                 </div>

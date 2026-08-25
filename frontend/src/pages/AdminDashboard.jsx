@@ -80,7 +80,7 @@ export default function AdminDashboard() {
             <StatCard icon={Briefcase} label="Bookings" value={stats.total_bookings} />
             <StatCard icon={Activity} label="Active" value={stats.active_bookings} />
             <StatCard icon={MessageSquare} label="Contacts" value={stats.contact_messages} />
-            <StatCard icon={CircleDollarSign} label="Revenue" value={`$${(stats.revenue || 0).toLocaleString()}`} />
+            <StatCard icon={CircleDollarSign} label="Revenue" value={`₹${(stats.revenue || 0).toLocaleString("en-IN")}`} />
           </div>
         )}
 
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
                   <div className="flex flex-col items-end gap-2">
                     <span className={`text-xs font-mono-accent px-3 py-1 border ${statusColor[b.status]}`}>{b.status.replace("_", " ")}</span>
                     <span className="text-xs text-white/60">Payment: {b.payment_status}</span>
-                    {b.amount != null && <span className="text-[#FF7A00] font-bold">${b.amount.toLocaleString()}</span>}
+                    {b.amount != null && <span className="text-[#FF7A00] font-bold">₹{b.amount.toLocaleString("en-IN")}</span>}
                   </div>
                 </div>
                 <p className="text-white/70 text-sm mt-3">{b.requirements}</p>
@@ -193,7 +193,7 @@ export default function AdminDashboard() {
                 </select>
               </div>
               <div>
-                <label className="overline">Quoted Amount (USD)</label>
+                <label className="overline">Quoted Amount (INR)</label>
                 <input
                   type="number"
                   step="0.01"
