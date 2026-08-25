@@ -291,11 +291,32 @@ async def get_booking(booking_id: str, user: dict = Depends(_current_user_dep)):
 
 
 # ---------- Payments (Razorpay) ----------
+def _clean_env(name: str) -> str:
+    """Read env var and strip surrounding whitespace/quotes."""
+    return os.environ.get(name, "").strip().strip('"').strip("'")
+
+
 def _get_razorpay() -> razorpay.Client:
-    return razorpay.Client(auth=(
-        os.environ["RAZORPAY_KEY_ID"],
-        os.environ["RAZORPAY_KEY_SECRET"],
-    ))
+    key_id = _clean_env("RAZORPAY_KEY_ID")
+    key_secret = _clean_env("RAZORPAY_KEY_SECRET")
+
+    # Sanity checks with actionable messages
+    if not key_id or not key_secret:
+        raise HTTPException(
+            status_code=400,
+            detail="Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in backend/.env",
+        )
+    if "placeholder" in key_id.lower() or "placeholder" in key_secret.lower():
+        raise HTTPException(
+            status_code=400,
+            detail="Razorpay keys are still placeholders. Replace RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in backend/.env with real keys from https://dashboard.razorpay.com/app/keys",
+        )
+    if not (key_id.startswith("rzp_test_") or key_id.startswith("rzp_live_")):
+        raise HTTPException(
+            status_code=400,
+            detail=f"RAZORPAY_KEY_ID must start with 'rzp_test_' or 'rzp_live_'. Got: '{key_id[:15]}...'. Copy the Key Id (NOT the secret) from Razorpay Dashboard → Settings → API Keys.",
+        )
+    return razorpay.Client(auth=(key_id, key_secret))
 
 
 @api.post("/payments/checkout")
@@ -328,9 +349,24 @@ async def create_checkout(payload: CheckoutRequest,
                 "project_title": booking.get("project_title", ""),
             },
         })
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error("Razorpay order.create failed: %s", e)
-        raise HTTPException(status_code=400, detail=f"Payment gateway error: {e}")
+        err_msg = str(e)
+        logger.error("Razorpay order.create failed: %s", err_msg)
+        if "Authentication failed" in err_msg or "401" in err_msg:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Razorpay rejected your credentials (Authentication failed). "
+                    "Common causes: (1) Key Id and Key Secret are swapped, "
+                    "(2) extra spaces/quotes in the .env values, "
+                    "(3) test keys used in Live mode or live keys in Test mode, "
+                    "(4) backend not restarted after .env edit. "
+                    "Regenerate keys at https://dashboard.razorpay.com/app/keys and restart uvicorn."
+                ),
+            )
+        raise HTTPException(status_code=400, detail=f"Payment gateway error: {err_msg}")
 
     await db.payment_transactions.insert_one({
         "session_id": order["id"],  # kept as 'session_id' for schema continuity
@@ -353,7 +389,7 @@ async def create_checkout(payload: CheckoutRequest,
         "order_id": order["id"],
         "amount": amount_paise,
         "currency": "INR",
-        "key_id": os.environ["RAZORPAY_KEY_ID"],
+        "key_id": _clean_env("RAZORPAY_KEY_ID"),
         "booking_id": booking["booking_id"],
         "project_title": booking.get("project_title", ""),
         "customer_name": user.get("name", ""),
@@ -371,7 +407,7 @@ class RazorpayVerifyRequest(__import__("pydantic").BaseModel):
 async def verify_payment(payload: RazorpayVerifyRequest,
                          user: dict = Depends(_current_user_dep)):
     """Verify Razorpay Checkout signature and mark booking paid."""
-    secret = os.environ["RAZORPAY_KEY_SECRET"].encode()
+    secret = _clean_env("RAZORPAY_KEY_SECRET").encode()
     body = f"{payload.razorpay_order_id}|{payload.razorpay_payment_id}".encode()
     expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, payload.razorpay_signature):
@@ -425,7 +461,7 @@ async def razorpay_webhook(request: Request):
     Configure this URL in Razorpay Dashboard → Webhooks with the same secret."""
     body = await request.body()
     sig = request.headers.get("X-Razorpay-Signature", "")
-    secret = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "").encode()
+    secret = _clean_env("RAZORPAY_WEBHOOK_SECRET").encode()
     expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
     if not (sig and hmac.compare_digest(expected, sig)):
         raise HTTPException(status_code=400, detail="Invalid webhook signature")

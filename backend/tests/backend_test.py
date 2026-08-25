@@ -267,8 +267,10 @@ class TestPayments:
             "booking_id": bid, "origin_url": BASE_URL}, timeout=60)
         assert r.status_code == 400, f"expected 400 got {r.status_code}: {r.text[:300]}"
         detail = r.json().get("detail", "")
-        assert "Payment gateway error" in detail, detail
-        assert "Authentication failed" in detail, detail
+        # Iteration 4: diagnostic message must be actionable for placeholder keys
+        assert "placeholder" in detail.lower(), detail
+        assert "Replace" in detail, detail
+        assert "dashboard.razorpay.com" in detail, detail
 
     def test_verify_bad_signature_400(self, client_session):
         r = client_session.post(f"{API}/payments/verify", json={
@@ -490,7 +492,7 @@ class TestAdmin:
         c = client_session.post(f"{API}/payments/checkout", json={
             "booking_id": bid, "origin_url": BASE_URL}, timeout=60)
         assert c.status_code == 400, f"expected 400 got {c.status_code}: {c.text[:200]}"
-        assert "Payment gateway error" in c.json()["detail"]
+        assert "placeholder" in c.json()["detail"].lower(), c.text
 
     def test_update_missing_booking_404(self, admin_client):
         r = admin_client.patch(f"{API}/admin/bookings/bk_missing", json={"status": "quoted"}, timeout=30)
