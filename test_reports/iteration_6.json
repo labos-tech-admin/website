@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 6 (backend only): re-verified the OTP contract changes from iteration 5 and re-ran the full backend regression suite. Updated pytest suites to the new contracts. Results: 70/70 tests pass in /app/backend/tests (backend_test.py 45 + test_otp_verification.py 25 incl. 2 new), plus 1 new edge-case test that intentionally FAILS to document a residual bug. Verified: (1) POST /api/auth/register with a brand-new email now returns HTTP 200 {ok:true, email:'<lowercased>', verification_required:true, email_sent:false} with NO auth cookies; user row persisted with email_verified=false; db.otps doc created with bcrypt code_hash ($2b$), attempts=0, email_sent=false, BSON-date expires_at, no plaintext code. (2) Register with an existing VERIFIED email -> 400 'Email already registered'. (3) Register with an existing UNVERIFIED email -> 200, password_hash + name updated, OTP re-issued and cooldown NOT enforced because previous send failed. (4) Register lowercases mixed-case emails and the 200 body leaks no internal config. (5) COOLDOWN: seeding db.otps with email_sent=true + last_sent_at=now then calling /auth/resend-otp returns 429 'Please wait Xs' and the pending OTP is not rotated. (6) With email_sent=false the cooldown is NOT applied — resend attempts a new send and returns 400 with exactly \"Couldn't send the verification email right now. Please try again in a moment.\"; the string contains no 'RESEND_API_KEY', '.env', 'Set ' or 'resend.com' (leak fixed; the operator detail is now only in backend.err.log). (7) resend-otp for unknown email -> 200 {ok:true} (no enumeration); for a verified email -> 400 'Email already verified. Please log in.'. (8) verify-otp positive path still works: seeded code -> 200 + user payload (no password_hash/_id) + HttpOnly access/refresh cookies, users.email_verified=true, OTP deleted, /auth/me works, subsequent login 200, OTP reuse -> 400. (9) verify-otp negatives: wrong code -> 400 'Incorrect code' + attempts++, 5 wrong then 429 'Too many attempts' + OTP deleted, expired -> 400 + deleted, no OTP -> 400, non-6-digit -> 400 'Code must be 6 digits', OTP without user -> 404. (10) login: unverified -> 403 detail {code:'email_not_verified', email}, wrong password on unverified -> 401, admin@labos.tech -> 200 role=admin email_verified=true with HttpOnly cookies. (11) Regressions all green: /api/services catalog + package prices, bookings CRUD/ownership 403, admin stats/clients/bookings/contacts + PATCH, contact form validation, Razorpay checkout 400 with placeholder keys, /payments/verify HMAC bad-sig 400 / no-txn 404 / valid flow marks paid, webhook signature validation. Frontend skipped as requested.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/register", "issue": "Residual iteration-5 finding #2: when the previous OTP send SUCCEEDED and the caller re-registers the same unverified email within the 60s cooldown, the handler updates password_hash/name FIRST and then _issue_and_send_otp raises 429. The client sees a failure while the stored credentials have already changed (verified by /app/backend/tests/test_register_cooldown_edge.py, which fails on purpose). Fix: issue the OTP before mutating the user, or swallow the cooldown in the register path and return 200 with {email_sent:false, cooldown:true}."},
+      {"endpoint": "POST /api/auth/register", "issue": "Register returns 200 email_sent:false but exposes no way to distinguish 'send failed' from 'still in cooldown' (both surface as email_sent:false only when the cooldown branch doesn't raise). Consider an explicit reason/cooldown_seconds field so the UI can render an accurate message and resend timer."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_otp_verification.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_razorpay_diagnostics.py",
+    "/app/backend/tests/test_register_cooldown_edge.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Register: issue/attempt the OTP before overwriting password_hash/name (or don't 429 in the register path) so a rate-limited re-register doesn't silently change credentials. Then /app/backend/tests/test_register_cooldown_edge.py will pass.",
+    "Optional: include cooldown_seconds / reason in the register 200 body so VerifyOtp can start an accurate resend timer.",
+    "Split /app/backend/server.py (741 lines, >700) and move the inline `__import__(\"pydantic\").BaseModel` request models (VerifyOtpRequest, ResendOtpRequest, RazorpayVerifyRequest) into models.py.",
+    "Update /app/memory/test_credentials.md: test1@labos.dev is UNVERIFIED (login 403); document register's new 200 {email_sent} contract and the seed-OTP-in-db.otps pattern."
+  ],
+  "critical_code_review_comments": [
+    "_issue_and_send_otp correctly returns bool and only enforces the cooldown when existing.email_sent is truthy; the OTP doc is written before the send so a user can still verify a late-delivered code. Good.",
+    "resend_otp maps a failed send to a single generic 400 string and logs the operator detail via logger.error — no RESEND_API_KEY/.env leak in any response (asserted).",
+    "register catches only HTTPException/Exception around the OTP flow; the 429 from the cooldown is re-raised AFTER the user mutation — ordering bug (see minor issues).",
+    "verify_otp checks attempts before comparing the code, so lockout+delete happens on the 6th request rather than at the 5th failure; tightening would delete as soon as attempts == OTP_MAX_ATTEMPTS.",
+    "/auth/refresh and /auth/me still do not re-check email_verified; unreachable today (cookies only issued post-verification) but an admin un-verify would not revoke live sessions."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_otp_verification.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_register_cooldown_edge.py"
+  ],
+  "success_rate": {"backend": "100% (70/70 on the main suites); 1 intentional failing edge-case test documenting the register-429-after-password-write bug", "frontend": "not tested (skipped per request)"},
+  "seed_data_creation": "Throwaway test_*@labos.dev users created via /auth/register and deleted in fixture teardown; bcrypt-hashed OTP docs seeded directly into db.otps (with email_sent flags) for verify/cooldown paths; payment_transactions seeded/removed for the HMAC verify test.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin@labos.tech / Labos@2026 (admin, auto-verified, login 200). test1@labos.dev / Test@1234 is UNVERIFIED -> login 403 email_not_verified.",
+  "context_for_next_testing_agent": "New register contract asserted everywhere: 200 {ok,email,verification_required,email_sent:false} with the placeholder Resend key. seed_otp() in test_otp_verification.py now takes email_sent= (default False) — pass email_sent=True + last_sent_offset_sec=0 to trigger the 60s resend cooldown 429. assert_no_internal_leak() checks for RESEND_API_KEY/.env/'Set '/resend.com. If a real RESEND_API_KEY is added, tests expecting email_sent:false and the generic resend 400 must flip to email_sent:true / 200. test_register_cooldown_edge.py is expected to fail until register stops writing the password before the cooldown check.",
+  "rca_of_the_issue": "All three iteration-5 findings are fixed: register no longer 400s on send failure (200 + email_sent flag, so Register.jsx can navigate to /verify-otp), the 60s cooldown is gated on db.otps.email_sent==True so a failed send does not lock the user out of resend, and the resend error is a single generic sentence with the config detail logged server-side only. The one remaining defect is ordering inside register(): the unverified-user password/name update happens before _issue_and_send_otp, so a cooldown 429 (only reachable once a real send has succeeded) returns an error to the client after the credentials were already overwritten, with no rollback."
+}

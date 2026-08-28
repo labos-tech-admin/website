@@ -34,8 +34,19 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (email, password, name) => {
+    // Register no longer auto-logs in; user must verify OTP first.
     const { data } = await api.post("/auth/register", { email, password, name });
+    return data; // { ok, email, verification_required }
+  };
+
+  const verifyOtp = async (email, code) => {
+    const { data } = await api.post("/auth/verify-otp", { email, code });
     setUser(data);
+    return data;
+  };
+
+  const resendOtp = async (email) => {
+    const { data } = await api.post("/auth/resend-otp", { email });
     return data;
   };
 
@@ -48,7 +59,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, checkAuth, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, verifyOtp, resendOtp, logout, checkAuth, setUser }}>
       {children}
     </AuthContext.Provider>
   );

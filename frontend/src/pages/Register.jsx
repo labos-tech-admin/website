@@ -16,9 +16,13 @@ export default function Register() {
     e.preventDefault();
     setBusy(true);
     try {
-      await register(form.email, form.password, form.name);
-      toast.success("Account created — welcome to LABOS.");
-      navigate("/dashboard");
+      const data = await register(form.email, form.password, form.name);
+      if (data?.email_sent) {
+        toast.success("Account created! Check your email for the verification code.");
+      } else {
+        toast.message("Account created. Enter the code you'll receive by email, or tap Resend.");
+      }
+      navigate(`/verify-otp?email=${encodeURIComponent(form.email)}`);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || "Registration failed.");
     } finally {

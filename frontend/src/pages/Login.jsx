@@ -22,7 +22,14 @@ export default function Login() {
       const to = user.role === "admin" ? "/admin" : (location.state?.from?.pathname || "/dashboard");
       navigate(to);
     } catch (err) {
-      toast.error(formatApiErrorDetail(err.response?.data?.detail) || "Login failed.");
+      const detail = err.response?.data?.detail;
+      // Detect email_not_verified structured error and route to verification page
+      if (detail && typeof detail === "object" && detail.code === "email_not_verified") {
+        toast.message("Please verify your email to continue.");
+        navigate(`/verify-otp?email=${encodeURIComponent(detail.email || form.email)}`);
+        return;
+      }
+      toast.error(formatApiErrorDetail(detail) || "Login failed.");
     } finally {
       setBusy(false);
     }

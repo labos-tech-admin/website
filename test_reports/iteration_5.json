@@ -1,0 +1,51 @@
+{
+  "summary": "Iteration 5: full backend regression + new strict email-OTP verification suite, plus frontend E2E of the register -> verify-otp -> login gating flow. Backend: 68/68 pytest tests pass (45 pre-existing regression tests adapted to the new no-auto-login register, + 23 new OTP tests in /app/backend/tests/test_otp_verification.py). Verified: register creates user with email_verified=false and returns HTTP 400 with 'Resend is not configured' + 'RESEND_API_KEY' (no auth cookies, user row persisted); duplicate verified email -> 400 'Email already registered'; existing UNVERIFIED email re-register updates password/name (not blocked); login for unverified user -> 403 with structured detail {code:'email_not_verified', email:...}; admin login still 200 with email_verified=true; verify-otp bad code -> 400 'Incorrect code' + attempts++ , 5 wrong attempts then 429 'Too many attempts' + OTP doc deleted, expired OTP -> 400 'expired' + deleted, no OTP -> 400 'No verification code pending', non-6-digit -> 400, correct seeded code -> 200 with email_verified=true + HttpOnly access/refresh cookies + OTP consumed + subsequent login allowed, OTP with no user -> 404; resend-otp: unknown email -> {ok:true} (no enumeration), verified email -> 400 'already verified', unverified -> 400 'Resend is not configured', within 60s of register -> 429 'Please wait Xs'; db.otps stores bcrypt code_hash ($2b$) with no plaintext 'code' field, expires_at is a BSON date, unique index on email + TTL index expireAfterSeconds=0 on expires_at both present; Google/emergent-session code path sets email_verified=true on both create and update (bogus session_id returns non-500). Regression: services/bookings/payments (Razorpay placeholder 400 + HMAC verify/webhook)/admin/contact all pass. Frontend: unverified login correctly redirects to /verify-otp?email=..., 6-digit input auto-advance, backspace navigation, non-numeric rejection and 6-digit paste all work, wrong code shows 'Incorrect code' toast and clears inputs, resend shows 'Please wait Xs' and starts the button cooldown, back link -> /register, /verify-otp without ?email redirects to /register, admin login -> /admin dashboard renders.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/register", "issue": "Error detail leaks internal configuration to end users: 'Account created but we couldn't send the verification email: Resend is not configured. Set RESEND_API_KEY in backend/.env (get one at https://resend.com/api-keys).' This string is rendered verbatim in a user-facing toast. Log the operator detail server-side and return a generic user message (e.g. 'We couldn't send the verification email. Please try again shortly.')."},
+      {"endpoint": "POST /api/auth/register", "issue": "Re-registering an existing UNVERIFIED email within the 60s OTP cooldown returns 429 AFTER the password/name have already been overwritten in db.users. The write is not rolled back, so the client sees a failure while credentials silently changed. Consider issuing the OTP before mutating the user, or returning 200 with a 'cooldown' flag."},
+      {"endpoint": "POST /api/auth/register", "issue": "OTP doc (and therefore the 60s cooldown) is upserted BEFORE send_otp_email succeeds. When sending fails the user is locked out of /auth/resend-otp for 60s even though no email ever went out. Only start the cooldown after a successful send."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Register -> VerifyOtp", "issue": "With the placeholder Resend key the backend returns 400, so Register.jsx's catch block fires: the user stays on /register with a raw config-error toast and is NEVER navigated to /verify-otp, even though the account WAS created (email_verified=false). Re-submitting the same email then returns 429 'Please wait 60s'. The only escape is to go to /login and get the 403 redirect. Handle the 'account created but email send failed' case explicitly (e.g. backend returns 200 with {verification_required:true, email_sent:false}, or frontend navigates to /verify-otp when the 400 detail indicates the account was created).", "affected_selectors": ["[data-testid=\"register-submit-btn\"]", "[data-testid=\"verify-otp-page\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "VerifyOtp / Register (toasts)", "issues": ["Long error toasts render over the Navbar and cover the 'Get Started'/'Logout' button in the top-right; consider bottom-right placement or shorter messages."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_otp_verification.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_razorpay_diagnostics.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Decide the UX for 'account created but OTP email could not be sent': either return 200 with email_sent:false and let Register.jsx navigate to /verify-otp, or have Register.jsx navigate on that specific 400. Today the user is dead-ended on /register.",
+    "Stop returning internal .env/RESEND_API_KEY guidance in user-facing error details (register + resend-otp); log it instead.",
+    "Start the 60s OTP cooldown only after a successful Resend send, and don't mutate the user's password before the OTP is issued.",
+    "Split /app/backend/server.py (724 lines) and move the inline `__import__(\"pydantic\").BaseModel` request models (VerifyOtpRequest, ResendOtpRequest, RazorpayVerifyRequest) into models.py.",
+    "Update /app/memory/test_credentials.md: test1@labos.dev is now UNVERIFIED (login returns 403); document the OTP endpoints and the seed-OTP-in-db.otps pattern."
+  ],
+  "critical_code_review_comments": [
+    "verify_otp: attempts are checked before the code comparison, so the 6th request (not the 5th failure) returns 429 — the documented behaviour holds, but the OTP stays usable until that extra call; deleting it as soon as attempts hits OTP_MAX_ATTEMPTS would be tighter.",
+    "email_service.send_otp_email raises RuntimeError for the placeholder key and server.py maps it to 400 correctly (no 500/502) — verified end-to-end.",
+    "db.otps has a unique index on email, so one pending OTP per address; verify-otp deletes on success/expiry/lockout — no leak of stale codes observed.",
+    "login blocks unverified users but /auth/refresh and /auth/me do not re-check email_verified; currently unreachable (cookies are only issued post-verification), but an admin-driven un-verification would not revoke live sessions.",
+    "server.py is 724 lines (>700) — split auth/payments/admin routers into modules."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_otp_verification.py"
+  ],
+  "success_rate": {"backend": "100% (68/68)", "frontend": "90% — all OTP UI mechanics and login gating pass; register->verify-otp navigation blocked by the 400 handling"},
+  "seed_data_creation": "Suite registers throwaway test_*@labos.dev users (deleted in fixture teardown for the OTP module), seeds bcrypt-hashed OTPs directly into db.otps, and seeds/removes payment_transactions. backend_test.py now marks its client fixture verified directly in Mongo (make_verified_client helper) since register no longer logs in.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin@labos.tech / Labos@2026 (admin, auto-verified). test1@labos.dev / Test@1234 is now UNVERIFIED -> login returns 403 email_not_verified (confirmed).",
+  "context_for_next_testing_agent": "OTP tests live in /app/backend/tests/test_otp_verification.py; positive verify path uses seed_otp() which writes a bcrypt code_hash straight into db.otps. backend_test.py gained make_verified_client() — register returns 400 with the placeholder Resend key, so the helper flips email_verified in Mongo and then logs in. If real RESEND_API_KEY is ever added, every assertion expecting 400 'Resend is not configured' (register/resend tests) must flip to 200. Frontend register cannot reach /verify-otp while the Resend key is a placeholder; use /login with an unverified user to land on the verify page.",
+  "rca_of_the_issue": "No functional defect in the OTP logic itself. The one user-visible gap is a contract mismatch: /auth/register raises 400 when the OTP email fails, but Register.jsx only navigates to /verify-otp on success, so with the placeholder Resend key the freshly-created (unverified) account has no in-app path to verification and the raw 'Set RESEND_API_KEY in backend/.env' string is shown to the end user. Secondary: the OTP doc + 60s cooldown are persisted before the send attempt, so a failed send still blocks resend for 60s."
+}

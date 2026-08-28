@@ -27,6 +27,35 @@ def _creds():
 
 ADMIN = _creds()
 
+BACKEND_ENV_TOP = dotenv_values("/app/backend/.env")
+
+
+def _mongo_db():
+    from pymongo import MongoClient
+    mc = MongoClient(BACKEND_ENV_TOP["MONGO_URL"])
+    return mc, mc[BACKEND_ENV_TOP["DB_NAME"]]
+
+
+def make_verified_client(prefix="test_client"):
+    """Register a user (OTP send fails with placeholder Resend key -> 200 email_sent:false),
+    mark email_verified=True directly in Mongo, then log in."""
+    s = requests.Session()
+    email = f"{prefix}_{uuid.uuid4().hex[:8]}@labos.dev"
+    r = s.post(f"{API}/auth/register",
+               json={"email": email, "password": "Test@1234", "name": "TEST Client"}, timeout=30)
+    assert r.status_code in (200, 400), f"register {r.status_code}: {r.text[:300]}"
+    mc, db = _mongo_db()
+    try:
+        res = db.users.update_one({"email": email}, {"$set": {"email_verified": True}})
+        assert res.matched_count == 1, f"user row not created for {email}"
+        db.otps.delete_one({"email": email})
+    finally:
+        mc.close()
+    lr = s.post(f"{API}/auth/login", json={"email": email, "password": "Test@1234"}, timeout=30)
+    assert lr.status_code == 200, f"login after verify {lr.status_code}: {lr.text[:300]}"
+    s.email = email
+    return s
+
 
 @pytest.fixture(scope="session")
 def admin_client():
@@ -39,15 +68,8 @@ def admin_client():
 
 @pytest.fixture(scope="session")
 def client_session():
-    """Fresh registered client."""
-    s = requests.Session()
-    email = f"test_client_{uuid.uuid4().hex[:8]}@labos.dev"
-    r = s.post(f"{API}/auth/register",
-               json={"email": email, "password": "Test@1234", "name": "TEST Client"}, timeout=30)
-    if r.status_code != 200:
-        pytest.fail(f"Register failed {r.status_code}: {r.text[:300]}")
-    s.email = email
-    return s
+    """Fresh registered + verified client."""
+    return make_verified_client()
 
 
 @pytest.fixture(scope="session")
@@ -127,21 +149,28 @@ class TestServices:
 
 # ---------------- Auth ----------------
 class TestAuth:
-    def test_register_sets_cookies(self):
+    def test_register_creates_unverified_user_without_cookies(self):
         s = requests.Session()
         email = f"test_reg_{uuid.uuid4().hex[:8]}@labos.dev"
         r = s.post(f"{API}/auth/register",
                    json={"email": email, "password": "Test@1234", "name": "TEST Reg"}, timeout=30)
-        assert r.status_code == 200, r.text
+        # New contract: 200 + email_sent flag even when Resend send fails
+        assert r.status_code == 200, f"expected 200 got {r.status_code}: {r.text[:300]}"
         body = r.json()
-        assert body["email"] == email
-        assert body["role"] == "client"
-        assert "password_hash" not in body and "_id" not in body
-        cookie_hdrs = r.headers.get("set-cookie", "")
-        assert "access_token" in cookie_hdrs and "HttpOnly" in cookie_hdrs
-        assert "refresh_token" in cookie_hdrs
-        me = s.get(f"{API}/auth/me", timeout=30)
-        assert me.status_code == 200 and me.json()["email"] == email
+        assert body["ok"] is True, body
+        assert body["email"] == email, body
+        assert body["verification_required"] is True, body
+        assert body["email_sent"] is False, body
+        assert "access_token" not in r.headers.get("set-cookie", "")
+        mc, db = _mongo_db()
+        try:
+            u = db.users.find_one({"email": email})
+            assert u is not None
+            assert u["email_verified"] is False
+            assert u["role"] == "client"
+        finally:
+            mc.close()
+        assert s.get(f"{API}/auth/me", timeout=30).status_code == 401
 
     def test_register_duplicate(self, client_session):
         r = requests.post(f"{API}/auth/register",
@@ -240,10 +269,7 @@ class TestBookings:
         assert package_booking["booking_id"] in ids and quote_booking["booking_id"] in ids
 
     def test_other_client_cannot_read_booking(self, package_booking):
-        s = requests.Session()
-        s.post(f"{API}/auth/register", json={
-            "email": f"test_other_{uuid.uuid4().hex[:8]}@labos.dev",
-            "password": "Test@1234", "name": "TEST Other"}, timeout=30)
+        s = make_verified_client("test_other")
         r = s.get(f"{API}/bookings/{package_booking['booking_id']}", timeout=30)
         assert r.status_code == 403
 
@@ -347,10 +373,7 @@ class TestPayments:
     def test_verify_other_user_forbidden(self, quote_booking):
         """Signature valid + txn exists but owned by another user -> 403."""
         from pymongo import MongoClient
-        s = requests.Session()
-        s.post(f"{API}/auth/register", json={
-            "email": f"test_pay_{uuid.uuid4().hex[:8]}@labos.dev",
-            "password": "Test@1234", "name": "TEST Pay Other"}, timeout=30)
+        s = make_verified_client("test_pay")
         oid = f"order_TEST{uuid.uuid4().hex[:10]}"
         pid = f"pay_TEST{uuid.uuid4().hex[:10]}"
         mc = MongoClient(BACKEND_ENV["MONGO_URL"])

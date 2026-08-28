@@ -16,6 +16,7 @@ import BookService from "@/pages/BookService";
 import ClientDashboard from "@/pages/ClientDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import PaymentSuccess from "@/pages/PaymentSuccess";
+import VerifyOtp from "@/pages/VerifyOtp";
 
 function AppRouter() {
   const location = useLocation();
@@ -31,6 +32,7 @@ function AppRouter() {
       <Route path="/contact" element={<Contact />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
       <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route
         path="/book"

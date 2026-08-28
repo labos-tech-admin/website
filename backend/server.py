@@ -25,6 +25,7 @@ from auth_utils import (
     _decode,
 )
 from services_catalog import SERVICES, get_service, get_package
+from email_service import send_otp_email, generate_otp
 
 from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout, CheckoutSessionRequest,
@@ -55,6 +56,8 @@ async def on_startup():
     await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.bookings.create_index("booking_id", unique=True)
     await db.payment_transactions.create_index("order_id", sparse=True)
+    await db.otps.create_index("email", unique=True)
+    await db.otps.create_index("expires_at", expireAfterSeconds=0)
 
     # Seed admin
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@labos.tech").lower()
@@ -69,15 +72,21 @@ async def on_startup():
             "name": admin_name,
             "role": "admin",
             "auth_provider": "password",
+            "email_verified": True,
             "created_at": utcnow().isoformat(),
         })
         logger.info("Seeded admin user %s", admin_email)
     else:
-        # Keep password in sync with .env
-        if not existing.get("password_hash") or not verify_password(admin_password, existing["password_hash"]):
+        # Keep password + admin flag + verified in sync with .env
+        if (not existing.get("password_hash")
+                or not verify_password(admin_password, existing["password_hash"])):
             await db.users.update_one({"email": admin_email},
                                       {"$set": {"password_hash": hash_password(admin_password),
-                                                "role": "admin"}})
+                                                "role": "admin",
+                                                "email_verified": True}})
+        elif not existing.get("email_verified"):
+            await db.users.update_one({"email": admin_email},
+                                      {"$set": {"email_verified": True}})
 
 
 @app.on_event("shutdown")
@@ -107,26 +116,178 @@ async def root():
 
 
 # ---------- Auth ----------
+OTP_TTL_MIN = 10
+OTP_MAX_ATTEMPTS = 5
+OTP_RESEND_COOLDOWN_SEC = 60
+
+
+async def _issue_and_send_otp(email: str, name: str) -> bool:
+    """Generate OTP, store hash, attempt send via Resend. Enforces 60s cooldown.
+    Returns True if the email actually went out. Raises HTTPException 429 if the
+    caller is still within the cooldown window from a previous SUCCESSFUL send."""
+    now = utcnow()
+    existing = await db.otps.find_one({"email": email})
+    if existing:
+        last_sent = existing.get("last_sent_at")
+        if isinstance(last_sent, str):
+            last_sent = datetime.fromisoformat(last_sent)
+        # Only enforce cooldown if the previous send actually succeeded
+        if last_sent and existing.get("email_sent") and (now - last_sent).total_seconds() < OTP_RESEND_COOLDOWN_SEC:
+            wait = OTP_RESEND_COOLDOWN_SEC - int((now - last_sent).total_seconds())
+            raise HTTPException(
+                status_code=429,
+                detail=f"Please wait {wait}s before requesting another code.",
+            )
+    code = generate_otp()
+    expires_at = now + timedelta(minutes=OTP_TTL_MIN)
+    # Store OTP first so the user can complete verification even if email fails later
+    await db.otps.update_one(
+        {"email": email},
+        {"$set": {
+            "email": email,
+            "code_hash": hash_password(code),
+            "expires_at": expires_at,
+            "attempts": 0,
+            "last_sent_at": now.isoformat(),
+            "email_sent": False,
+        }},
+        upsert=True,
+    )
+    try:
+        await send_otp_email(email, name, code)
+        await db.otps.update_one({"email": email}, {"$set": {"email_sent": True}})
+        return True
+    except Exception as e:
+        logger.error("Resend delivery failed for %s: %s", email, e)
+        return False
+
+
 @api.post("/auth/register")
-async def register(payload: RegisterRequest, response: Response):
+async def register(payload: RegisterRequest):
+    """Create an unverified account and send an OTP. Does NOT log the user in."""
     email = payload.email.lower()
-    if await db.users.find_one({"email": email}):
+    existing = await db.users.find_one({"email": email})
+    if existing and existing.get("email_verified"):
         raise HTTPException(status_code=400, detail="Email already registered")
-    user_id = new_id("user_")
-    doc = {
-        "user_id": user_id,
+
+    # Issue OTP first — a cooldown 429 must NOT mutate the user's password.
+    try:
+        email_sent = await _issue_and_send_otp(email, payload.name)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Unexpected OTP flow error for %s: %s", email, e)
+        email_sent = False
+
+    if existing:
+        # Existing unverified: safe to refresh password/name now
+        await db.users.update_one(
+            {"email": email},
+            {"$set": {
+                "password_hash": hash_password(payload.password),
+                "name": payload.name.strip(),
+                "auth_provider": "password",
+                "updated_at": utcnow().isoformat(),
+            }},
+        )
+    else:
+        user_id = new_id("user_")
+        await db.users.insert_one({
+            "user_id": user_id,
+            "email": email,
+            "password_hash": hash_password(payload.password),
+            "name": payload.name.strip(),
+            "role": "client",
+            "auth_provider": "password",
+            "email_verified": False,
+            "created_at": utcnow().isoformat(),
+        })
+
+    return {
+        "ok": True,
         "email": email,
-        "password_hash": hash_password(payload.password),
-        "name": payload.name.strip(),
-        "role": "client",
-        "auth_provider": "password",
-        "created_at": utcnow().isoformat(),
+        "verification_required": True,
+        "email_sent": email_sent,
     }
-    await db.users.insert_one(doc)
-    access = create_access_token(user_id, email, "client")
-    refresh = create_refresh_token(user_id)
+
+
+class VerifyOtpRequest(__import__("pydantic").BaseModel):
+    email: str
+    code: str
+
+
+@api.post("/auth/verify-otp")
+async def verify_otp(payload: VerifyOtpRequest, response: Response):
+    email = payload.email.lower().strip()
+    code = payload.code.strip()
+    if not code.isdigit() or len(code) != 6:
+        raise HTTPException(status_code=400, detail="Code must be 6 digits")
+
+    otp_doc = await db.otps.find_one({"email": email})
+    if not otp_doc:
+        raise HTTPException(status_code=400, detail="No verification code pending. Please request a new one.")
+
+    expires_at = otp_doc.get("expires_at")
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < utcnow():
+        await db.otps.delete_one({"email": email})
+        raise HTTPException(status_code=400, detail="Code expired. Please request a new one.")
+
+    if otp_doc.get("attempts", 0) >= OTP_MAX_ATTEMPTS:
+        await db.otps.delete_one({"email": email})
+        raise HTTPException(status_code=429, detail="Too many attempts. Please request a new code.")
+
+    if not verify_password(code, otp_doc["code_hash"]):
+        await db.otps.update_one({"email": email}, {"$inc": {"attempts": 1}})
+        raise HTTPException(status_code=400, detail="Incorrect code")
+
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"email_verified": True, "updated_at": utcnow().isoformat()}},
+    )
+    await db.otps.delete_one({"email": email})
+
+    # Auto-login after successful verification
+    access = create_access_token(user["user_id"], email, user.get("role", "client"))
+    refresh = create_refresh_token(user["user_id"])
     set_auth_cookies(response, access, refresh)
-    return _clean_user(doc)
+    user["email_verified"] = True
+    return _clean_user(user)
+
+
+class ResendOtpRequest(__import__("pydantic").BaseModel):
+    email: str
+
+
+@api.post("/auth/resend-otp")
+async def resend_otp(payload: ResendOtpRequest):
+    email = payload.email.lower().strip()
+    user = await db.users.find_one({"email": email})
+    if not user:
+        # Don't leak existence
+        return {"ok": True}
+    if user.get("email_verified"):
+        raise HTTPException(status_code=400, detail="Email already verified. Please log in.")
+    try:
+        email_sent = await _issue_and_send_otp(email, user.get("name", ""))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Resend OTP unexpected error for %s: %s", email, e)
+        email_sent = False
+    if not email_sent:
+        raise HTTPException(
+            status_code=400,
+            detail="Couldn't send the verification email right now. Please try again in a moment.",
+        )
+    return {"ok": True}
 
 
 @api.post("/auth/login")
@@ -135,6 +296,12 @@ async def login(payload: LoginRequest, response: Response):
     user = await db.users.find_one({"email": email})
     if not user or not user.get("password_hash") or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user.get("email_verified") and user.get("role") != "admin":
+        # Strict mode: block unverified users
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "email_not_verified", "message": "Please verify your email first.", "email": email},
+        )
     access = create_access_token(user["user_id"], email, user.get("role", "client"))
     refresh = create_refresh_token(user["user_id"])
     set_auth_cookies(response, access, refresh)
@@ -188,7 +355,8 @@ async def emergent_session(payload: EmergentSessionRequest, response: Response):
     if existing:
         user_id = existing["user_id"]
         await db.users.update_one({"user_id": user_id},
-                                  {"$set": {"name": name, "picture": picture}})
+                                  {"$set": {"name": name, "picture": picture,
+                                            "email_verified": True}})
     else:
         user_id = new_id("user_")
         await db.users.insert_one({
@@ -198,6 +366,7 @@ async def emergent_session(payload: EmergentSessionRequest, response: Response):
             "picture": picture,
             "role": "client",
             "auth_provider": "google",
+            "email_verified": True,  # Google already verified this address
             "created_at": utcnow().isoformat(),
         })
 
