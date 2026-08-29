@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import "@/App.css";
-import { HelmetProvider } from "react-helmet-async";
 
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -66,14 +65,12 @@ function AppRouter() {
 export default function App() {
   return (
     <div className="App">
-      <HelmetProvider>
-        <BrowserRouter>
-          <AuthProvider>
-            <AppRouter />
-            <Toaster theme="dark" position="top-right" richColors />
-          </AuthProvider>
-        </BrowserRouter>
-      </HelmetProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRouter />
+          <Toaster theme="dark" position="top-right" richColors />
+        </AuthProvider>
+      </BrowserRouter>
     </div>
   );
 }
