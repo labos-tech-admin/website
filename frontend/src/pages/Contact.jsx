@@ -44,7 +44,7 @@ export default function Contact() {
               </div>
               <div>
                 <p className="overline mb-1">Email</p>
-                <a href="mailto:hello@labos.tech" className="text-white hover:text-[#085DD4]">hello@labos.tech</a>
+                <a href="mailto:labostechnologies.india@gmail.com" className="text-white hover:text-[#085DD4]">labostechnologies.india@gmail.com</a>
               </div>
             </div>
             <div className="flex items-start gap-4">

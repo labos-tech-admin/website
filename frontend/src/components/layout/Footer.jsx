@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Zap, Mail, Github, Linkedin } from "lucide-react";
+import logo from "../../images/logo.png"
 
 export default function Footer() {
   return (
@@ -7,15 +8,16 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-10">
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <span className="w-9 h-9 grid place-items-center bg-[#085DD4]">
-              <Zap className="w-5 h-5 text-white" strokeWidth={2.5} />
+            <span className="w-9 h-9 grid place-items-center">
+              {/* <Zap className="w-5 h-5 text-white" strokeWidth={2.5} /> */}
+              <img src={logo} alt="image" className="w-5 h-5"></img>
             </span>
             <span className="font-heading font-extrabold text-xl">
               LABOS <span className="text-[#085DD4]">Technologies</span>
             </span>
           </div>
           <p className="text-white/60 text-sm leading-relaxed">
-            A one-person virtual IT studio building sharp websites, apps, and keeping them healthy.
+            A virtual IT studio building sharp websites, apps, and keeping them healthy.
           </p>
         </div>
 
@@ -41,14 +43,14 @@ export default function Footer() {
         <div>
           <p className="overline mb-4">Get in touch</p>
           <a
-            href="mailto:hello@labos.tech"
+            href="mailto:labostechnologies.india@gmail.com"
             className="flex items-center gap-2 text-sm text-white/80 hover:text-[#085DD4]"
           >
-            <Mail className="w-4 h-4" /> hello@labos.tech
+            <Mail className="w-4 h-4" /> labostechnologies.india@gmail.com
           </a>
           <div className="flex items-center gap-3 mt-4 text-white/60">
-            <a href="#" aria-label="LinkedIn" className="hover:text-[#085DD4]"><Linkedin className="w-5 h-5" /></a>
-            <a href="#" aria-label="GitHub" className="hover:text-[#085DD4]"><Github className="w-5 h-5" /></a>
+            <a href="https://www.linkedin.com/company/labos-tech/ " aria-label="LinkedIn" className="hover:text-[#085DD4]"><Linkedin className="w-5 h-5" /></a>
+            <a href="https://github.com/LABOS-Technologies" aria-label="GitHub" className="hover:text-[#085DD4]"><Github className="w-5 h-5" /></a>
           </div>
         </div>
       </div>

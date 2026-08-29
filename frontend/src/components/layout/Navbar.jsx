@@ -2,6 +2,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Menu, X, Zap } from "lucide-react";
 import { useState } from "react";
+import logo from "../../images/logo.png"
 
 const links = [
   { to: "/", label: "Home" },
@@ -24,8 +25,9 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-black/70 backdrop-blur-xl border-b border-white/10">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 group" data-testid="nav-logo-link">
-          <span className="w-9 h-9 grid place-items-center bg-[#085DD4] group-hover:bg-[#0748A8] transition-colors">
-            <Zap className="w-5 h-5 text-white" strokeWidth={2.5} />
+          <span className="w-9 h-9 grid place-items-center ">
+            {/* <Zap className="w-5 h-5 text-white" strokeWidth={2.5} /> */}
+            <img src={logo} alt="image" className="w-5 h-5"></img>
           </span>
           <span className="font-heading font-extrabold text-xl tracking-tight">
             LABOS <span className="text-[#085DD4]">Technologies</span>

@@ -5,8 +5,8 @@ import Footer from "@/components/layout/Footer";
 import { ArrowRight, Code2, Wrench, Layers, Zap, ShieldCheck, Rocket } from "lucide-react";
 
 const stats = [
-  { k: "40+", v: "Projects Shipped" },
-  { k: "12", v: "Active Retainers" },
+  { k: "1", v: "Projects Shipped" },
+  { k: "0", v: "Active Retainers" },
   { k: "99.9%", v: "Uptime Managed" },
   { k: "24h", v: "Response SLA" },
 ];
@@ -65,7 +65,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             className="overline mb-6"
           >
-            LABOS TECHNOLOGIES // VIRTUAL IT STUDIO
+            LABOS TECHNOLOGIES | IT STUDIO
           </motion.p>
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
@@ -82,7 +82,7 @@ export default function Home() {
             transition={{ delay: 0.25 }}
             className="mt-8 text-lg md:text-xl text-white/70 max-w-2xl leading-relaxed"
           >
-            LABOS is a one-person virtual IT studio for founders who want senior-level craft without
+            LABOS is a virtual IT studio for founders who want senior-level craft without
             the agency drag. Book a package, request a custom quote, or hire us to keep your stack alive.
           </motion.p>
           <motion.div
