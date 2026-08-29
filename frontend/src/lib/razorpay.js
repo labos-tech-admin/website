@@ -35,7 +35,7 @@ export function payWithRazorpay(bookingId) {
         name: orderPayload.customer_name || "",
         email: orderPayload.customer_email || "",
       },
-      theme: { color: "#FF7A00" },
+      theme: { color: "#085DD4" },
       handler: async (response) => {
         try {
           await api.post("/payments/verify", {

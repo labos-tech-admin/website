@@ -107,7 +107,7 @@ export default function BookService() {
                 disabled={!selectedPackage}
                 className={`px-4 py-2 border transition-colors ${
                   bookingType === "package"
-                    ? "bg-[#FF7A00] text-black border-[#FF7A00]"
+                    ? "bg-[#085DD4] text-black border-[#085DD4]"
                     : "border-white/15 text-white/70 hover:border-white/40"
                 } ${!selectedPackage ? "opacity-40 cursor-not-allowed" : ""}`}
                 data-testid="tab-package"
@@ -119,7 +119,7 @@ export default function BookService() {
                 onClick={() => setBookingType("quote")}
                 className={`px-4 py-2 border transition-colors ${
                   bookingType === "quote"
-                    ? "bg-[#FF7A00] text-black border-[#FF7A00]"
+                    ? "bg-[#085DD4] text-black border-[#085DD4]"
                     : "border-white/15 text-white/70 hover:border-white/40"
                 }`}
                 data-testid="tab-quote"
@@ -134,7 +134,7 @@ export default function BookService() {
                 required
                 value={form.project_title}
                 onChange={(e) => setForm({ ...form, project_title: e.target.value })}
-                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3"
+                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3"
                 data-testid="booking-input-title"
               />
             </div>
@@ -146,7 +146,7 @@ export default function BookService() {
                 value={form.requirements}
                 onChange={(e) => setForm({ ...form, requirements: e.target.value })}
                 placeholder="Tell us what you need — goals, features, references, deadlines."
-                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3 resize-none"
+                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3 resize-none"
                 data-testid="booking-input-requirements"
               />
             </div>
@@ -160,7 +160,7 @@ export default function BookService() {
                     step="100"
                     value={form.budget}
                     onChange={(e) => setForm({ ...form, budget: e.target.value })}
-                    className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3"
+                    className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3"
                     data-testid="booking-input-budget"
                   />
                 </div>
@@ -170,7 +170,7 @@ export default function BookService() {
                     placeholder="e.g. 4 weeks"
                     value={form.timeline}
                     onChange={(e) => setForm({ ...form, timeline: e.target.value })}
-                    className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3"
+                    className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3"
                     data-testid="booking-input-timeline"
                   />
                 </div>
@@ -181,7 +181,7 @@ export default function BookService() {
               <input
                 value={form.contact_phone}
                 onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
-                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3"
+                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3"
                 data-testid="booking-input-phone"
               />
             </div>
@@ -197,28 +197,28 @@ export default function BookService() {
                 <p className="overline mb-2">Order Summary</p>
                 <h3 className="font-heading text-xl font-bold">{selectedPackage.name}</h3>
                 <p className="text-white/60 text-sm mt-1 mb-4">{selectedPackage.description}</p>
-                <p className="font-heading text-3xl font-extrabold text-[#FF7A00] mb-4">
+                <p className="font-heading text-3xl font-extrabold text-[#085DD4] mb-4">
                   ₹{selectedPackage.amount.toLocaleString("en-IN")}
                 </p>
                 <ul className="space-y-2">
                   {selectedPackage.highlights.map((h) => (
                     <li key={h} className="flex items-start gap-2 text-sm text-white/80">
-                      <Check className="w-4 h-4 text-[#FF7A00] mt-0.5 shrink-0" /> {h}
+                      <Check className="w-4 h-4 text-[#085DD4] mt-0.5 shrink-0" /> {h}
                     </li>
                   ))}
                 </ul>
                 <p className="text-xs text-white/50 mt-6">
-                  You'll be charged via Razorpay. Test card: <code className="text-[#FF7A00]">4111 1111 1111 1111</code>
+                  You'll be charged via Razorpay. Test card: <code className="text-[#085DD4]">4111 1111 1111 1111</code>
                 </p>
               </>
             ) : (
               <>
                 <p className="overline mb-2">How Custom Quotes Work</p>
                 <ul className="space-y-3 text-sm text-white/70">
-                  <li className="flex gap-2"><Check className="w-4 h-4 text-[#FF7A00] mt-0.5 shrink-0" /> Submit your requirements</li>
-                  <li className="flex gap-2"><Check className="w-4 h-4 text-[#FF7A00] mt-0.5 shrink-0" /> Get a quote within 24 hrs</li>
-                  <li className="flex gap-2"><Check className="w-4 h-4 text-[#FF7A00] mt-0.5 shrink-0" /> Approve & pay via Razorpay</li>
-                  <li className="flex gap-2"><Check className="w-4 h-4 text-[#FF7A00] mt-0.5 shrink-0" /> Track progress on your dashboard</li>
+                  <li className="flex gap-2"><Check className="w-4 h-4 text-[#085DD4] mt-0.5 shrink-0" /> Submit your requirements</li>
+                  <li className="flex gap-2"><Check className="w-4 h-4 text-[#085DD4] mt-0.5 shrink-0" /> Get a quote within 24 hrs</li>
+                  <li className="flex gap-2"><Check className="w-4 h-4 text-[#085DD4] mt-0.5 shrink-0" /> Approve & pay via Razorpay</li>
+                  <li className="flex gap-2"><Check className="w-4 h-4 text-[#085DD4] mt-0.5 shrink-0" /> Track progress on your dashboard</li>
                 </ul>
               </>
             )}

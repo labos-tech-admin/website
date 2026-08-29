@@ -11,7 +11,7 @@ import { CreditCard, Plus, Clock } from "lucide-react";
 const statusColor = {
   new: "bg-blue-500/10 text-blue-400 border-blue-500/30",
   quoted: "bg-purple-500/10 text-purple-400 border-purple-500/30",
-  in_progress: "bg-[#FF7A00]/10 text-[#FF7A00] border-[#FF7A00]/40",
+  in_progress: "bg-[#085DD4]/10 text-[#085DD4] border-[#085DD4]/40",
   completed: "bg-green-500/10 text-green-400 border-green-500/30",
   cancelled: "bg-red-500/10 text-red-400 border-red-500/30",
 };
@@ -100,7 +100,7 @@ export default function ClientDashboard() {
                 <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-white/10">
                   <div className="flex flex-wrap gap-6 text-sm">
                     {b.amount != null && (
-                      <div><span className="text-white/50">Amount</span> <span className="text-[#FF7A00] font-bold">₹{b.amount.toLocaleString("en-IN")}</span></div>
+                      <div><span className="text-white/50">Amount</span> <span className="text-[#085DD4] font-bold">₹{b.amount.toLocaleString("en-IN")}</span></div>
                     )}
                     {b.timeline && <div><span className="text-white/50">Timeline</span> <span className="text-white">{b.timeline}</span></div>}
                     {b.budget && <div><span className="text-white/50">Budget</span> <span className="text-white">₹{b.budget.toLocaleString("en-IN")}</span></div>}
@@ -116,7 +116,7 @@ export default function ClientDashboard() {
                   )}
                 </div>
                 {b.admin_notes && (
-                  <div className="mt-4 p-3 bg-black/40 border-l-2 border-[#FF7A00] text-sm text-white/80">
+                  <div className="mt-4 p-3 bg-black/40 border-l-2 border-[#085DD4] text-sm text-white/80">
                     <p className="overline mb-1 text-[10px]">Note from LABOS</p>
                     {b.admin_notes}
                   </div>

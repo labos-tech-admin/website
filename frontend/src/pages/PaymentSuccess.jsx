@@ -13,7 +13,7 @@ export default function PaymentSuccess() {
           <h1 className="font-heading text-3xl font-bold mb-2">Payment successful!</h1>
           <p className="text-white/70 mb-6">
             Your payment was received and your project has moved to{" "}
-            <span className="text-[#FF7A00] font-bold">In Progress</span>.
+            <span className="text-[#085DD4] font-bold">In Progress</span>.
           </p>
           <Link to="/dashboard" className="btn-primary" data-testid="payment-back-to-dashboard-btn">
             Go to Dashboard

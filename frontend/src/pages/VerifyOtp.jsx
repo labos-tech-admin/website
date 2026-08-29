@@ -100,8 +100,8 @@ export default function VerifyOtp() {
       <div className="flex-1 grid place-items-center px-6 py-16">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-6">
-            <div className="w-14 h-14 grid place-items-center bg-[#FF7A00]/10 border border-[#FF7A00]/40">
-              <Mail className="w-6 h-6 text-[#FF7A00]" />
+            <div className="w-14 h-14 grid place-items-center bg-[#085DD4]/10 border border-[#085DD4]/40">
+              <Mail className="w-6 h-6 text-[#085DD4]" />
             </div>
           </div>
           <p className="overline text-center mb-3">Verify your email</p>
@@ -125,7 +125,7 @@ export default function VerifyOtp() {
                   onChange={(e) => setDigit(i, e.target.value)}
                   onKeyDown={(e) => onKeyDown(i, e)}
                   data-testid={`otp-input-${i}`}
-                  className="w-12 h-14 md:w-14 md:h-16 text-center text-2xl md:text-3xl font-heading font-bold bg-black/50 border border-white/15 focus:border-[#FF7A00] outline-none"
+                  className="w-12 h-14 md:w-14 md:h-16 text-center text-2xl md:text-3xl font-heading font-bold bg-black/50 border border-white/15 focus:border-[#085DD4] outline-none"
                 />
               ))}
             </div>
@@ -143,7 +143,7 @@ export default function VerifyOtp() {
             <button
               onClick={doResend}
               disabled={resendCooldown > 0}
-              className="text-sm text-white/60 hover:text-[#FF7A00] transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="text-sm text-white/60 hover:text-[#085DD4] transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               data-testid="resend-otp-btn"
             >
               <RotateCcw className="w-4 h-4" />

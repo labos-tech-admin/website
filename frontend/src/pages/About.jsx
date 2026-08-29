@@ -36,8 +36,8 @@ export default function About() {
             <div className="space-y-6">
               {values.map((v) => (
                 <div key={v.title} className="flex gap-4">
-                  <div className="mt-1 w-8 h-8 grid place-items-center bg-[#FF7A00]/10 border border-[#FF7A00]/40 shrink-0">
-                    <Check className="w-4 h-4 text-[#FF7A00]" />
+                  <div className="mt-1 w-8 h-8 grid place-items-center bg-[#085DD4]/10 border border-[#085DD4]/40 shrink-0">
+                    <Check className="w-4 h-4 text-[#085DD4]" />
                   </div>
                   <div>
                     <h3 className="font-heading text-lg font-semibold mb-1">{v.title}</h3>

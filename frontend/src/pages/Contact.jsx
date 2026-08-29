@@ -39,17 +39,17 @@ export default function Contact() {
 
           <div className="mt-10 space-y-6">
             <div className="flex items-start gap-4">
-              <div className="w-11 h-11 grid place-items-center bg-[#FF7A00]/10 border border-[#FF7A00]/40 shrink-0">
-                <Mail className="w-5 h-5 text-[#FF7A00]" />
+              <div className="w-11 h-11 grid place-items-center bg-[#085DD4]/10 border border-[#085DD4]/40 shrink-0">
+                <Mail className="w-5 h-5 text-[#085DD4]" />
               </div>
               <div>
                 <p className="overline mb-1">Email</p>
-                <a href="mailto:hello@labos.tech" className="text-white hover:text-[#FF7A00]">hello@labos.tech</a>
+                <a href="mailto:hello@labos.tech" className="text-white hover:text-[#085DD4]">hello@labos.tech</a>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-11 h-11 grid place-items-center bg-[#FF7A00]/10 border border-[#FF7A00]/40 shrink-0">
-                <MessageSquare className="w-5 h-5 text-[#FF7A00]" />
+              <div className="w-11 h-11 grid place-items-center bg-[#085DD4]/10 border border-[#085DD4]/40 shrink-0">
+                <MessageSquare className="w-5 h-5 text-[#085DD4]" />
               </div>
               <div>
                 <p className="overline mb-1">Response Time</p>
@@ -70,7 +70,7 @@ export default function Contact() {
               required
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3 text-white"
+              className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3 text-white"
               data-testid="contact-input-name"
             />
           </div>
@@ -81,7 +81,7 @@ export default function Contact() {
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3 text-white"
+              className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3 text-white"
               data-testid="contact-input-email"
             />
           </div>
@@ -91,7 +91,7 @@ export default function Contact() {
               required
               value={form.subject}
               onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3 text-white"
+              className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3 text-white"
               data-testid="contact-input-subject"
             />
           </div>
@@ -102,7 +102,7 @@ export default function Contact() {
               rows={5}
               value={form.message}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
-              className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3 text-white resize-none"
+              className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3 text-white resize-none"
               data-testid="contact-input-message"
             />
           </div>

@@ -61,7 +61,7 @@ export default function Services() {
                     <p className="overline mb-2">{svc.title}</p>
                     <h3 className="font-heading text-2xl font-bold">{p.name}</h3>
                     <p className="text-white/60 text-sm mt-1 mb-5">{p.description}</p>
-                    <p className="font-heading text-4xl font-extrabold text-[#FF7A00] mb-6">
+                    <p className="font-heading text-4xl font-extrabold text-[#085DD4] mb-6">
                       ₹{p.amount.toLocaleString("en-IN")}
                       <span className="text-sm font-medium text-white/50 ml-2">
                         {p.package_id.includes("monthly") ? "/mo" : "one-time"}
@@ -70,7 +70,7 @@ export default function Services() {
                     <ul className="space-y-2 mb-8 flex-1">
                       {p.highlights.map((h) => (
                         <li key={h} className="flex items-start gap-2 text-sm text-white/80">
-                          <Check className="w-4 h-4 text-[#FF7A00] mt-0.5 shrink-0" /> {h}
+                          <Check className="w-4 h-4 text-[#085DD4] mt-0.5 shrink-0" /> {h}
                         </li>
                       ))}
                     </ul>

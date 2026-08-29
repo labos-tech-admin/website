@@ -10,7 +10,7 @@ const TABS = ["Bookings", "Clients", "Contacts"];
 const statusColor = {
   new: "bg-blue-500/10 text-blue-400 border-blue-500/30",
   quoted: "bg-purple-500/10 text-purple-400 border-purple-500/30",
-  in_progress: "bg-[#FF7A00]/10 text-[#FF7A00] border-[#FF7A00]/40",
+  in_progress: "bg-[#085DD4]/10 text-[#085DD4] border-[#085DD4]/40",
   completed: "bg-green-500/10 text-green-400 border-green-500/30",
   cancelled: "bg-red-500/10 text-red-400 border-red-500/30",
 };
@@ -91,7 +91,7 @@ export default function AdminDashboard() {
               onClick={() => setTab(t)}
               data-testid={`admin-tab-${t.toLowerCase()}`}
               className={`px-5 py-3 text-sm font-heading font-semibold border-b-2 transition-colors ${
-                tab === t ? "border-[#FF7A00] text-[#FF7A00]" : "border-transparent text-white/60 hover:text-white"
+                tab === t ? "border-[#085DD4] text-[#085DD4]" : "border-transparent text-white/60 hover:text-white"
               }`}
             >
               {t}
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
                   <div className="flex flex-col items-end gap-2">
                     <span className={`text-xs font-mono-accent px-3 py-1 border ${statusColor[b.status]}`}>{b.status.replace("_", " ")}</span>
                     <span className="text-xs text-white/60">Payment: {b.payment_status}</span>
-                    {b.amount != null && <span className="text-[#FF7A00] font-bold">₹{b.amount.toLocaleString("en-IN")}</span>}
+                    {b.amount != null && <span className="text-[#085DD4] font-bold">₹{b.amount.toLocaleString("en-IN")}</span>}
                   </div>
                 </div>
                 <p className="text-white/70 text-sm mt-3">{b.requirements}</p>
@@ -184,7 +184,7 @@ export default function AdminDashboard() {
                 <select
                   value={edit.status}
                   onChange={(e) => setEdit({ ...edit, status: e.target.value })}
-                  className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3"
+                  className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3"
                   data-testid="admin-edit-status"
                 >
                   {["new", "quoted", "in_progress", "completed", "cancelled"].map((s) => (
@@ -199,7 +199,7 @@ export default function AdminDashboard() {
                   step="0.01"
                   value={edit.amount}
                   onChange={(e) => setEdit({ ...edit, amount: e.target.value })}
-                  className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3"
+                  className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3"
                   data-testid="admin-edit-amount"
                 />
               </div>
@@ -209,7 +209,7 @@ export default function AdminDashboard() {
                   rows={4}
                   value={edit.admin_notes}
                   onChange={(e) => setEdit({ ...edit, admin_notes: e.target.value })}
-                  className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3 resize-none"
+                  className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3 resize-none"
                   data-testid="admin-edit-notes"
                 />
               </div>
@@ -230,7 +230,7 @@ export default function AdminDashboard() {
 function StatCard({ icon: Icon, label, value }) {
   return (
     <div className="bg-[#141414] border border-white/10 p-5">
-      <Icon className="w-5 h-5 text-[#FF7A00] mb-3" />
+      <Icon className="w-5 h-5 text-[#085DD4] mb-3" />
       <p className="font-heading text-2xl md:text-3xl font-extrabold">{value}</p>
       <p className="text-xs text-white/50 font-mono-accent mt-1">{label}</p>
     </div>

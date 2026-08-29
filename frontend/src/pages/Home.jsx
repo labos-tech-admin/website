@@ -74,7 +74,7 @@ export default function Home() {
             className="font-heading text-5xl md:text-7xl lg:text-8xl font-extrabold leading-[0.95] tracking-tighter max-w-5xl"
           >
             Websites, Apps & <br />
-            <span className="text-[#FF7A00]">Uptime</span> — engineered by one focused human.
+            <span className="text-[#085DD4]">Uptime</span> — engineered by one focused human.
           </motion.h1>
           <motion.p
             initial={{ opacity: 0 }}
@@ -106,7 +106,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-2 md:grid-cols-4 gap-8">
           {stats.map((s) => (
             <div key={s.v} data-testid={`stat-${s.v.toLowerCase().replace(/\s/g, "-")}`}>
-              <p className="font-heading text-4xl md:text-5xl font-extrabold text-[#FF7A00]">{s.k}</p>
+              <p className="font-heading text-4xl md:text-5xl font-extrabold text-[#085DD4]">{s.k}</p>
               <p className="text-sm text-white/60 mt-2">{s.v}</p>
             </div>
           ))}
@@ -146,12 +146,12 @@ export default function Home() {
                 />
               </div>
               <div className="p-7">
-                <s.icon className="w-6 h-6 text-[#FF7A00] mb-4" />
+                <s.icon className="w-6 h-6 text-[#085DD4] mb-4" />
                 <h3 className="font-heading text-2xl font-semibold mb-2">{s.title}</h3>
                 <p className="text-white/60 text-sm leading-relaxed">{s.desc}</p>
                 <Link
                   to="/services"
-                  className="inline-flex items-center gap-1 mt-6 text-[#FF7A00] font-semibold text-sm hover:gap-2 transition-all"
+                  className="inline-flex items-center gap-1 mt-6 text-[#085DD4] font-semibold text-sm hover:gap-2 transition-all"
                 >
                   Learn more <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -171,7 +171,7 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-6">
             {capabilities.map((c) => (
               <div key={c.title} className="bg-[#141414] border border-white/10 p-8">
-                <c.icon className="w-8 h-8 text-[#FF7A00] mb-5" />
+                <c.icon className="w-8 h-8 text-[#085DD4] mb-5" />
                 <h3 className="font-heading text-xl font-semibold mb-2">{c.title}</h3>
                 <p className="text-white/60 text-sm leading-relaxed">{c.desc}</p>
               </div>
@@ -182,7 +182,7 @@ export default function Home() {
 
       {/* CTA */}
       <section className="max-w-7xl mx-auto px-6 py-28">
-        <div className="border border-[#FF7A00]/40 bg-gradient-to-br from-[#1a0f00] to-[#0a0a0a] p-12 md:p-20 text-center">
+        <div className="border border-[#085DD4]/40 bg-gradient-to-br from-[#00113a] to-[#0a0a0a] p-12 md:p-20 text-center">
           <p className="overline mb-4">Ready when you are</p>
           <h2 className="font-heading text-4xl md:text-6xl font-extrabold tracking-tighter max-w-3xl mx-auto">
             Let’s build something that ships.

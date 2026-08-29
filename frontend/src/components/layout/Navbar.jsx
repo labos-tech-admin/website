@@ -24,11 +24,11 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-black/70 backdrop-blur-xl border-b border-white/10">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 group" data-testid="nav-logo-link">
-          <span className="w-9 h-9 grid place-items-center bg-[#FF7A00] group-hover:bg-[#E66D00] transition-colors">
-            <Zap className="w-5 h-5 text-black" strokeWidth={2.5} />
+          <span className="w-9 h-9 grid place-items-center bg-[#085DD4] group-hover:bg-[#0748A8] transition-colors">
+            <Zap className="w-5 h-5 text-white" strokeWidth={2.5} />
           </span>
           <span className="font-heading font-extrabold text-xl tracking-tight">
-            LABOS<span className="text-[#FF7A00]">.</span>
+            LABOS <span className="text-[#085DD4]">Technologies</span>
           </span>
         </Link>
 
@@ -41,7 +41,7 @@ export default function Navbar() {
               data-testid={`nav-link-${l.label.toLowerCase()}`}
               className={({ isActive }) =>
                 `text-sm font-medium tracking-wide transition-colors ${
-                  isActive ? "text-[#FF7A00]" : "text-white/80 hover:text-white"
+                  isActive ? "text-[#085DD4]" : "text-white/80 hover:text-white"
                 }`
               }
             >
@@ -95,7 +95,7 @@ export default function Navbar() {
                 end={l.to === "/"}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
-                  `text-base font-medium ${isActive ? "text-[#FF7A00]" : "text-white/80"}`
+                  `text-base font-medium ${isActive ? "text-[#085DD4]" : "text-white/80"}`
                 }
                 data-testid={`nav-mobile-${l.label.toLowerCase()}`}
               >

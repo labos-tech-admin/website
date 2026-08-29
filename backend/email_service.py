@@ -33,7 +33,7 @@ def _otp_email_html(name: str, code: str) -> str:
           <tr>
             <td style="padding:32px 40px;border-bottom:1px solid rgba(255,255,255,0.08);">
               <div style="font-family:Helvetica,Arial,sans-serif;font-weight:800;font-size:22px;letter-spacing:-0.5px;color:#ffffff;">
-                LABOS<span style="color:#FF7A00;">.</span>
+                LABOS<span style="color:#085DD4;">.</span>
               </div>
               <div style="color:#a3a3a3;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:4px;">
                 Virtual IT Studio
@@ -48,8 +48,8 @@ def _otp_email_html(name: str, code: str) -> str:
               <p style="margin:0 0 24px;color:#a3a3a3;font-size:15px;line-height:1.6;">
                 Enter this 6-digit code on the verification screen to activate your LABOS account. The code expires in 10 minutes.
               </p>
-              <div style="background:#0a0a0a;border:1px solid rgba(255,122,0,0.4);padding:24px;text-align:center;margin-bottom:24px;">
-                <div style="font-family:Menlo,Consolas,monospace;font-size:36px;letter-spacing:12px;font-weight:700;color:#FF7A00;">
+              <div style="background:#0a0a0a;border:1px solid rgba(8,93,212,0.4);padding:24px;text-align:center;margin-bottom:24px;">
+                <div style="font-family:Menlo,Consolas,monospace;font-size:36px;letter-spacing:12px;font-weight:700;color:#085DD4;">
                   {code}
                 </div>
               </div>

@@ -50,7 +50,7 @@ export default function Register() {
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3"
+                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3"
                 data-testid="register-input-name"
               />
             </div>
@@ -61,7 +61,7 @@ export default function Register() {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3"
+                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3"
                 data-testid="register-input-email"
               />
             </div>
@@ -73,7 +73,7 @@ export default function Register() {
                 minLength={6}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#FF7A00] p-3"
+                className="mt-2 w-full bg-black/50 border border-white/15 focus:border-[#085DD4] p-3"
                 data-testid="register-input-password"
               />
             </div>
@@ -90,7 +90,7 @@ export default function Register() {
 
           <button
             onClick={googleLogin}
-            className="w-full border border-white/20 hover:border-[#FF7A00] hover:text-[#FF7A00] py-3 font-heading font-semibold flex items-center justify-center gap-2 transition-colors"
+            className="w-full border border-white/20 hover:border-[#085DD4] hover:text-[#085DD4] py-3 font-heading font-semibold flex items-center justify-center gap-2 transition-colors"
             data-testid="register-google-btn"
           >
             Continue with Google
@@ -98,7 +98,7 @@ export default function Register() {
 
           <p className="text-center text-sm text-white/60 mt-6">
             Already have an account?{" "}
-            <Link to="/login" className="text-[#FF7A00] hover:underline" data-testid="register-login-link">
+            <Link to="/login" className="text-[#085DD4] hover:underline" data-testid="register-login-link">
               Sign in
             </Link>
           </p>
