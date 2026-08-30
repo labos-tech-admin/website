@@ -85,7 +85,7 @@ async def send_otp_email(to_email: str, name: str, code: str) -> None:
 
     resend.api_key = api_key
     params = {
-        "from": f"LABOS Technologies <{sender}>",
+        "from": f"LABOS Technologies <noreply@labostechnologies.in>",
         "to": [to_email],
         "subject": f"Your LABOS verification code: {code}",
         "html": _otp_email_html(name, code),
